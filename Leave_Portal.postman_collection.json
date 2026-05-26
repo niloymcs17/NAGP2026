@@ -1,0 +1,519 @@
+{
+	"info": {
+		"_postman_id": "7f21a58c-c2b3-46c2-bb58-29cb1f579b2a",
+		"name": "NAGP Leave Portal",
+		"description": "API collection to interact with the Employee Leave Management Portal microservices via the API Gateway (localhost:8080).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "Login - Employee 1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.token) {",
+									"    pm.collectionVariables.set(\"jwt_token\", jsonData.token);",
+									"    console.log(\"Token automatically saved to jwt_token variable!\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"employee1\",\n    \"password\": \"password\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Logs in as employee1 and automatically saves the JWT token into the collection variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Manager 1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.token) {",
+									"    pm.collectionVariables.set(\"jwt_token\", jsonData.token);",
+									"    console.log(\"Token automatically saved to jwt_token variable!\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"manager1\",\n    \"password\": \"password\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Logs in as manager1 and automatically saves the JWT token into the collection variables."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Leave Operations (Employee)",
+			"item": [
+				{
+					"name": "Get Leave Balances",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/leaves/balances",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"leaves",
+								"balances"
+							]
+						},
+						"description": "Retrieve the current user's leave balances (Sick, Casual, Privilege)."
+					},
+					"response": []
+				},
+				{
+					"name": "Apply for Leave",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"leaveType\": \"CASUAL\",\n    \"startDate\": \"2026-06-01\",\n    \"endDate\": \"2026-06-03\",\n    \"numberOfDays\": 3,\n    \"reason\": \"Personal travel\",\n    \"managerId\": 3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/leaves/apply",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"leaves",
+								"apply"
+							]
+						},
+						"description": "Applies for a new leave request. Validates date ranges, sufficient balances, and overlapping requests."
+					},
+					"response": []
+				},
+				{
+					"name": "View Leave History",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/leaves/history?status=ALL&page=0&size=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"leaves",
+								"history"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "ALL",
+									"description": "Filter by status: PENDING, APPROVED, REJECTED, CANCELLED, or ALL"
+								},
+								{
+									"key": "page",
+									"value": "0",
+									"description": "Page index"
+								},
+								{
+									"key": "size",
+									"value": "10",
+									"description": "Page size"
+								}
+							]
+						},
+						"description": "View the leave history for the logged-in employee."
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Pending Request",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/leaves/{{leaveRequestId}}/cancel",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"leaves",
+								"{{leaveRequestId}}",
+								"cancel"
+							]
+						},
+						"description": "Cancel a leave request that is still in PENDING status."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Leave Management (Manager)",
+			"item": [
+				{
+					"name": "Get Team Pending Requests",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/leaves/pending?status=PENDING",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"leaves",
+								"pending"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "PENDING",
+									"description": "Filter by status: PENDING, APPROVED, REJECTED"
+								},
+								{
+									"key": "employeeId",
+									"value": "1",
+									"description": "Filter by specific team member's employee ID",
+									"disabled": true
+								},
+								{
+									"key": "startDate",
+									"value": "2026-06-01",
+									"description": "Start Date filter",
+									"disabled": true
+								},
+								{
+									"key": "endDate",
+									"value": "2026-06-10",
+									"description": "End Date filter",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Retrieve pending, approved, or rejected leave requests from team members reporting to this manager."
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Leave Request",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/leaves/{{leaveRequestId}}/approve",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"leaves",
+								"{{leaveRequestId}}",
+								"approve"
+							]
+						},
+						"description": "Approves a pending request and deducts leave balance."
+					},
+					"response": []
+				},
+				{
+					"name": "Reject Leave Request",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"comment\": \"Not matching business schedules.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/leaves/{{leaveRequestId}}/reject",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"leaves",
+								"{{leaveRequestId}}",
+								"reject"
+							]
+						},
+						"description": "Rejects a pending request and records a rejection comment."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. Employee Directory",
+			"item": [
+				{
+					"name": "Get Employee Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								"1"
+							]
+						},
+						"description": "Get employee detail. Employees can only get their own data; Managers can get team members' data."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Team (Manager Only)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees/team",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								"team"
+							]
+						},
+						"description": "Retrieve the list of employees reporting to the logged-in manager."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Employee (Manager Only)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"id\": 4,\n    \"username\": \"employee3\",\n    \"fullName\": \"Employee Three\",\n    \"email\": \"employee3@company.com\",\n    \"role\": \"EMPLOYEE\",\n    \"managerId\": 3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/employees",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees"
+							]
+						},
+						"description": "Create a new employee profile. Only manager can call this. Triggers RabbitMQ event and initializes leave balances in Leave Service."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "leaveRequestId",
+			"value": "1",
+			"type": "string"
+		}
+	]
+}
