@@ -11,25 +11,44 @@ spring:
           enabled: true
           lower-case-service-id: true
       routes:
+        # ── Authentication Service ──────────────────────────────────────────
         - id: authentication-service
           uri: lb://AUTHENTICATION-SERVICE
           predicates:
             - Path=/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: authServiceCB
+                fallbackUri: forward:/fallback/auth
+
+        # ── Employee Service ────────────────────────────────────────────────
         - id: employee-service
           uri: lb://EMPLOYEE-SERVICE
           predicates:
             - Path=/employees/**
           filters:
             - name: JwtAuthenticationFilter
+            - name: CircuitBreaker
+              args:
+                name: employeeServiceCB
+                fallbackUri: forward:/fallback/employee
+
+        # ── Leave Management Service ────────────────────────────────────────
         - id: leave-management-service
           uri: lb://LEAVE-MANAGEMENT-SERVICE
           predicates:
             - Path=/leaves/**
           filters:
             - name: JwtAuthenticationFilter
+            - name: CircuitBreaker
+              args:
+                name: leaveServiceCB
+                fallbackUri: forward:/fallback/leave
 
 eureka:
   instance:
+    prefer-ip-address: true
     hostname: localhost
   client:
     service-url:
@@ -39,3 +58,53 @@ eureka:
 
 jwt:
   secret: 3cO0m6pP9qRsTuVwXyZ1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3
+
+# ── Resilience4j Circuit Breaker Configuration ──────────────────────────────
+resilience4j:
+  circuitbreaker:
+    instances:
+      # Authentication Service CB – slightly stricter (auth is critical)
+      authServiceCB:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+      # Employee Service CB
+      employeeServiceCB:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+      # Leave Management Service CB
+      leaveServiceCB:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+# ── Actuator – expose health + circuit-breaker endpoints ────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,circuitbreakers,circuitbreakerevents
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
