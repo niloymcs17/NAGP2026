@@ -29,3 +29,12 @@ eureka:
 jwt:
   secret: 3cO0m6pP9qRsTuVwXyZ1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3
   expiration-ms: 86400000
+
+# ── Distributed Tracing ──────────────────────────────────────────────────────
+management:
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+  tracing:
+    sampling:
+      probability: 1.0

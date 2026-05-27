@@ -60,6 +60,12 @@ public class LeaveController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Start date must be less than or equal to end date");
         }
 
+        int calculatedDays = calculateLeaveDays(request.getStartDate(), request.getEndDate());
+        if (calculatedDays <= 0) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Leave request must cover at least one working day (excluding weekends and public holidays)");
+        }
+        request.setNumberOfDays(calculatedDays);
+
         String leaveType = request.getLeaveType().toUpperCase();
         if (!leaveType.equals("CASUAL") && !leaveType.equals("SICK") && !leaveType.equals("PRIVILEGE")) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid leave type. Must be CASUAL, SICK, or PRIVILEGE");
@@ -102,6 +108,30 @@ public class LeaveController {
         rabbitTemplate.convertAndSend(RabbitMQConfig.LEAVE_EXCHANGE, RabbitMQConfig.LEAVE_ROUTING_KEY, event);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(savedRequest);
+    }
+
+    private int calculateLeaveDays(LocalDate startDate, LocalDate endDate) {
+        int count = 0;
+        LocalDate current = startDate;
+        
+        java.util.Set<java.time.MonthDay> publicHolidays = java.util.Set.of(
+            java.time.MonthDay.of(5, 1),   // 1 May
+            java.time.MonthDay.of(8, 15),  // 15 Aug
+            java.time.MonthDay.of(11, 4),  // 4 Nov
+            java.time.MonthDay.of(11, 21)  // 21 Nov
+        );
+
+        while (!current.isAfter(endDate)) {
+            java.time.DayOfWeek dayOfWeek = current.getDayOfWeek();
+            boolean isWeekend = (dayOfWeek == java.time.DayOfWeek.SATURDAY || dayOfWeek == java.time.DayOfWeek.SUNDAY);
+            boolean isPublicHoliday = publicHolidays.contains(java.time.MonthDay.from(current));
+            
+            if (!isWeekend && !isPublicHoliday) {
+                count++;
+            }
+            current = current.plusDays(1);
+        }
+        return count;
     }
 
     @GetMapping("/pending")

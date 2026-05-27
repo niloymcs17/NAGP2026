@@ -9,6 +9,11 @@ spring:
     port: 5672
     username: guest
     password: guest
+    listener:
+      simple:
+        observation-enabled: true
+    template:
+      observation-enabled: true
 
 eureka:
   instance:
@@ -17,3 +22,12 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+# ── Distributed Tracing ──────────────────────────────────────────────────────
+management:
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+  tracing:
+    sampling:
+      probability: 1.0

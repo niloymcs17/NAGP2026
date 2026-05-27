@@ -108,3 +108,9 @@ management:
   health:
     circuitbreakers:
       enabled: true
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces   # local dev; Docker overrides via env var
+  tracing:
+    sampling:
+      probability: 1.0                            # trace 100% of requests

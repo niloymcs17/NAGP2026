@@ -154,7 +154,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"leaveType\": \"CASUAL\",\n    \"startDate\": \"2026-06-01\",\n    \"endDate\": \"2026-06-03\",\n    \"numberOfDays\": 3,\n    \"reason\": \"Personal travel\",\n    \"managerId\": 3\n}"
+							"raw": "{\n    \"leaveType\": \"CASUAL\",\n    \"startDate\": \"2026-06-01\",\n    \"endDate\": \"2026-06-03\",\n    \"reason\": \"Personal travel\",\n    \"managerId\": 3\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/leaves/apply",
