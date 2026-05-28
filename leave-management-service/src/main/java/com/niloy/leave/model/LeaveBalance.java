@@ -3,7 +3,11 @@ package com.niloy.leave.model;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "leave_balances")
+@Table(name = "leave_balances",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_employee_leave_type",
+                columnNames = {"employeeId", "leaveType"}
+        ))
 public class LeaveBalance {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

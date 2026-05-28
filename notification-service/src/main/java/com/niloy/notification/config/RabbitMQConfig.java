@@ -1,6 +1,7 @@
 package com.niloy.notification.config;
 
 import org.springframework.amqp.core.*;
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
@@ -36,9 +37,27 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public AmqpTemplate amqpTemplate(ConnectionFactory connectionFactory) {
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
         rabbitTemplate.setMessageConverter(converter());
+        rabbitTemplate.setObservationEnabled(true);
         return rabbitTemplate;
     }
+
+    /**
+     * Explicitly configure the listener container factory with observation enabled.
+     * This ensures @RabbitListener methods read the incoming traceparent header from RabbitMQ message
+     * headers and create a child span linked to the leave-management-service trace, making the
+     * notification-service visible in Jaeger under the same traceId.
+     */
+    @Bean
+    public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
+            ConnectionFactory connectionFactory) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setMessageConverter(converter());
+        factory.setObservationEnabled(true);
+        return factory;
+    }
 }
+

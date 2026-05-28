@@ -18,13 +18,21 @@ public class EmployeeCreatedConsumer {
     public void consumeEmployeeCreated(EmployeeCreatedEvent event) {
         System.out.println("Consuming employee.created event for: " + event.getUsername());
 
-        if (leaveBalanceRepository.findByEmployeeId(event.getEmployeeId()).isEmpty()) {
-            leaveBalanceRepository.save(new LeaveBalance(null, event.getEmployeeId(), "CASUAL", 12, 0));
-            leaveBalanceRepository.save(new LeaveBalance(null, event.getEmployeeId(), "SICK", 10, 0));
-            leaveBalanceRepository.save(new LeaveBalance(null, event.getEmployeeId(), "PRIVILEGE", 15, 0));
-            System.out.println("Default leave balances initialized for Employee ID: " + event.getEmployeeId());
-        } else {
-            System.out.println("Leave balances already initialized for Employee ID: " + event.getEmployeeId());
+        // Check and insert each leave type individually to be idempotent.
+        // If a message is redelivered (e.g. after a restart), we skip types already initialized.
+        initBalanceIfAbsent(event.getEmployeeId(), "CASUAL",    12);
+        initBalanceIfAbsent(event.getEmployeeId(), "SICK",      10);
+        initBalanceIfAbsent(event.getEmployeeId(), "PRIVILEGE", 15);
+        System.out.println("Leave balances verified/initialized for Employee ID: " + event.getEmployeeId());
+    }
+
+    private void initBalanceIfAbsent(Long employeeId, String leaveType, int allocated) {
+        boolean exists = leaveBalanceRepository
+                .findByEmployeeIdAndLeaveTypeIgnoreCase(employeeId, leaveType)
+                .isPresent();
+        if (!exists) {
+            leaveBalanceRepository.save(new LeaveBalance(null, employeeId, leaveType, allocated, 0));
+            System.out.println("  Initialized " + leaveType + " balance for Employee ID: " + employeeId);
         }
     }
 }
