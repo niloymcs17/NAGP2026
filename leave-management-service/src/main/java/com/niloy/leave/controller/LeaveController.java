@@ -2,6 +2,11 @@ package com.niloy.leave.controller;
 
 import com.niloy.leave.config.RabbitMQConfig;
 import com.niloy.leave.event.LeaveNotificationEvent;
+import com.niloy.leave.exception.AccessDeniedException;
+import com.niloy.leave.exception.InsufficientLeaveBalanceException;
+import com.niloy.leave.exception.InvalidLeaveRequestException;
+import com.niloy.leave.exception.LeaveConflictException;
+import com.niloy.leave.exception.LeaveRequestNotFoundException;
 import com.niloy.leave.model.LeaveBalance;
 import com.niloy.leave.model.LeaveRequest;
 import com.niloy.leave.repository.LeaveBalanceRepository;
@@ -38,10 +43,10 @@ public class LeaveController {
     @GetMapping("/balances")
     public ResponseEntity<?> getBalances(
             @RequestHeader("X-User-Id") Long employeeId) {
-        
+
         List<LeaveBalance> balances = leaveBalanceRepository.findByEmployeeId(employeeId);
         if (balances.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Leave balances not found for employee");
+            throw new LeaveRequestNotFoundException(employeeId);
         }
         return ResponseEntity.ok(balances);
     }
@@ -59,42 +64,37 @@ public class LeaveController {
 
         if (request.getStartDate().isBefore(LocalDate.now())) {
             log.warn("Leave rejected — past start date — employeeId={}", employeeId);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Start date cannot be in the past");
+            throw new InvalidLeaveRequestException("Start date cannot be in the past");
         }
         if (request.getStartDate().isAfter(request.getEndDate())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Start date must be less than or equal to end date");
+            throw new InvalidLeaveRequestException("Start date must be less than or equal to end date");
         }
 
         int calculatedDays = calculateLeaveDays(request.getStartDate(), request.getEndDate());
         if (calculatedDays <= 0) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Leave request must cover at least one working day (excluding weekends and public holidays)");
+            throw new InvalidLeaveRequestException("Leave request must cover at least one working day (excluding weekends and public holidays)");
         }
         request.setNumberOfDays(calculatedDays);
 
         String leaveType = request.getLeaveType().toUpperCase();
         if (!leaveType.equals("CASUAL") && !leaveType.equals("SICK") && !leaveType.equals("PRIVILEGE")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid leave type. Must be CASUAL, SICK, or PRIVILEGE");
+            throw new InvalidLeaveRequestException("Invalid leave type. Must be CASUAL, SICK, or PRIVILEGE");
         }
 
         LeaveBalance balance = leaveBalanceRepository
                 .findByEmployeeIdAndLeaveTypeIgnoreCase(employeeId, leaveType)
-                .orElse(null);
-
-        if (balance == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Leave balance record not found for type: " + leaveType);
-        }
+                .orElseThrow(() -> new InvalidLeaveRequestException("Leave balance record not found for type: " + leaveType));
 
         if (balance.getRemaining() < request.getNumberOfDays()) {
             log.warn("Leave rejected — insufficient balance — employeeId={}, remaining={}, requested={}", employeeId, balance.getRemaining(), request.getNumberOfDays());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Insufficient leave balance. Remaining: "
-                    + balance.getRemaining() + ", Requested: " + request.getNumberOfDays());
+            throw new InsufficientLeaveBalanceException(balance.getRemaining(), request.getNumberOfDays());
         }
 
         boolean hasOverlap = leaveRequestRepository.existsOverlappingRequest(
                 employeeId, request.getStartDate(), request.getEndDate());
         if (hasOverlap) {
             log.warn("Leave rejected — overlapping dates — employeeId={}", employeeId);
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Overlapping leave request detected for these dates.");
+            throw new LeaveConflictException();
         }
 
         LeaveRequest savedRequest = leaveRequestRepository.save(request);
@@ -121,7 +121,7 @@ public class LeaveController {
     private int calculateLeaveDays(LocalDate startDate, LocalDate endDate) {
         int count = 0;
         LocalDate current = startDate;
-        
+
         java.util.Set<java.time.MonthDay> publicHolidays = java.util.Set.of(
             java.time.MonthDay.of(5, 1),   // 1 May
             java.time.MonthDay.of(8, 15),  // 15 Aug
@@ -133,7 +133,7 @@ public class LeaveController {
             java.time.DayOfWeek dayOfWeek = current.getDayOfWeek();
             boolean isWeekend = (dayOfWeek == java.time.DayOfWeek.SATURDAY || dayOfWeek == java.time.DayOfWeek.SUNDAY);
             boolean isPublicHoliday = publicHolidays.contains(java.time.MonthDay.from(current));
-            
+
             if (!isWeekend && !isPublicHoliday) {
                 count++;
             }
@@ -152,12 +152,12 @@ public class LeaveController {
             @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
         if (!userRole.equals("MANAGER")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only managers can view team leave requests");
+            throw new AccessDeniedException("Only managers can view team leave requests");
         }
 
         List<LeaveRequest> requests = leaveRequestRepository.findPendingRequestsForManager(
                 managerId, status, employeeId, startDate, endDate);
-        
+
         return ResponseEntity.ok(requests);
     }
 
@@ -169,29 +169,29 @@ public class LeaveController {
 
         if (!userRole.equals("MANAGER")) {
             log.warn("Forbidden — userId={} (role={}) attempted manager-only operation", managerId, userRole);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only managers can approve leave requests");
+            throw new AccessDeniedException("Only managers can approve leave requests");
         }
 
-        LeaveRequest request = leaveRequestRepository.findById(id).orElse(null);
-        if (request == null) {
-            log.warn("Leave request not found — id={}", id);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Leave request not found");
-        }
+        LeaveRequest request = leaveRequestRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Leave request not found — id={}", id);
+                    return new LeaveRequestNotFoundException(id);
+                });
 
         if (!request.getManagerId().equals(managerId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You are not authorized to approve this request");
+            throw new AccessDeniedException("You are not authorized to approve this request");
         }
 
         if (!request.getStatus().equals("PENDING")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Only PENDING requests can be approved. Current status: " + request.getStatus());
+            throw new InvalidLeaveRequestException("Only PENDING requests can be approved. Current status: " + request.getStatus());
         }
 
         LeaveBalance balance = leaveBalanceRepository
                 .findByEmployeeIdAndLeaveTypeIgnoreCase(request.getEmployeeId(), request.getLeaveType())
-                .orElse(null);
+                .orElseThrow(() -> new InsufficientLeaveBalanceException(0, request.getNumberOfDays()));
 
-        if (balance == null || balance.getRemaining() < request.getNumberOfDays()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot approve. Insufficient employee leave balance.");
+        if (balance.getRemaining() < request.getNumberOfDays()) {
+            throw new InsufficientLeaveBalanceException(balance.getRemaining(), request.getNumberOfDays());
         }
 
         balance.setUsed(balance.getUsed() + request.getNumberOfDays());
@@ -228,23 +228,23 @@ public class LeaveController {
 
         if (!userRole.equals("MANAGER")) {
             log.warn("Forbidden — userId={} (role={}) attempted manager-only operation", managerId, userRole);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only managers can reject leave requests");
+            throw new AccessDeniedException("Only managers can reject leave requests");
         }
 
         String comment = body.getOrDefault("comment", "Rejected by manager");
 
-        LeaveRequest request = leaveRequestRepository.findById(id).orElse(null);
-        if (request == null) {
-            log.warn("Leave request not found — id={}", id);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Leave request not found");
-        }
+        LeaveRequest request = leaveRequestRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Leave request not found — id={}", id);
+                    return new LeaveRequestNotFoundException(id);
+                });
 
         if (!request.getManagerId().equals(managerId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You are not authorized to reject this request");
+            throw new AccessDeniedException("You are not authorized to reject this request");
         }
 
         if (!request.getStatus().equals("PENDING")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Only PENDING requests can be rejected. Current status: " + request.getStatus());
+            throw new InvalidLeaveRequestException("Only PENDING requests can be rejected. Current status: " + request.getStatus());
         }
 
         request.setStatus("REJECTED");
@@ -296,17 +296,15 @@ public class LeaveController {
             @PathVariable Long id,
             @RequestHeader("X-User-Id") Long employeeId) {
 
-        LeaveRequest request = leaveRequestRepository.findById(id).orElse(null);
-        if (request == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Leave request not found");
-        }
+        LeaveRequest request = leaveRequestRepository.findById(id)
+                .orElseThrow(() -> new LeaveRequestNotFoundException(id));
 
         if (!request.getEmployeeId().equals(employeeId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You are not authorized to cancel this request");
+            throw new AccessDeniedException("You are not authorized to cancel this request");
         }
 
         if (!request.getStatus().equals("PENDING")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Only PENDING requests can be cancelled. Current status: " + request.getStatus());
+            throw new InvalidLeaveRequestException("Only PENDING requests can be cancelled. Current status: " + request.getStatus());
         }
 
         request.setStatus("CANCELLED");
@@ -327,7 +325,7 @@ public class LeaveController {
         );
         rabbitTemplate.convertAndSend(RabbitMQConfig.LEAVE_EXCHANGE, RabbitMQConfig.LEAVE_ROUTING_KEY, event);
 
-        log.info("Leave cancelled \u2014 leaveId={}, employeeId={}", savedRequest.getId(), employeeId);
+        log.info("Leave cancelled — leaveId={}, employeeId={}", savedRequest.getId(), employeeId);
         return ResponseEntity.ok(savedRequest);
     }
 }

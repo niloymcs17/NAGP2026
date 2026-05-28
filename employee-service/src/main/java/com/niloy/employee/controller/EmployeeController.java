@@ -2,6 +2,9 @@ package com.niloy.employee.controller;
 
 import com.niloy.employee.config.RabbitMQConfig;
 import com.niloy.employee.event.EmployeeCreatedEvent;
+import com.niloy.employee.exception.AccessDeniedException;
+import com.niloy.employee.exception.EmployeeAlreadyExistsException;
+import com.niloy.employee.exception.EmployeeNotFoundException;
 import com.niloy.employee.model.Employee;
 import com.niloy.employee.repository.EmployeeRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -28,15 +31,15 @@ public class EmployeeController {
     public ResponseEntity<?> createEmployee(
             @RequestBody Employee employee,
             @RequestHeader(value = "X-User-Role", required = false) String userRole) {
-        
+
         if (userRole != null && !userRole.equals("MANAGER")) {
             log.warn("Access denied — role '{}' cannot create employees", userRole);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only managers can create employees");
+            throw new AccessDeniedException("Only managers can create employees");
         }
 
         if (employeeRepository.existsById(employee.getId())) {
             log.warn("Employee creation rejected — ID {} already exists", employee.getId());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Employee already exists with this ID");
+            throw new EmployeeAlreadyExistsException(employee.getId());
         }
 
         Employee savedEmployee = employeeRepository.save(employee);
@@ -63,20 +66,18 @@ public class EmployeeController {
             @RequestHeader("X-User-Id") Long currentUserId,
             @RequestHeader("X-User-Role") String currentUserRole) {
 
-        Employee employee = employeeRepository.findById(id).orElse(null);
-        if (employee == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Employee not found");
-        }
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new EmployeeNotFoundException(id));
 
         if (currentUserRole.equals("EMPLOYEE")) {
             if (!currentUserId.equals(id)) {
                 log.warn("Access denied — userId={} attempted to access employee id={}", currentUserId, id);
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied. Employees can only access their own data.");
+                throw new AccessDeniedException("Access denied. Employees can only access their own data.");
             }
         } else if (currentUserRole.equals("MANAGER")) {
             if (!currentUserId.equals(id) && !currentUserId.equals(employee.getManagerId())) {
                 log.warn("Access denied — userId={} attempted to access employee id={}", currentUserId, id);
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied. Managers can only access their own or their team members' data.");
+                throw new AccessDeniedException("Access denied. Managers can only access their own or their team members' data.");
             }
         }
 
@@ -90,7 +91,7 @@ public class EmployeeController {
             @RequestHeader("X-User-Role") String currentUserRole) {
 
         if (!currentUserRole.equals("MANAGER")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied. Only managers can view team members.");
+            throw new AccessDeniedException("Access denied. Only managers can view team members.");
         }
 
         List<Employee> team = employeeRepository.findByManagerId(managerId);
