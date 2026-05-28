@@ -47,7 +47,7 @@ The tracing functionality is powered by the following libraries configured in ea
 - **Micrometer Tracing Bridge OTel (`micrometer-tracing-bridge-otel`)**: Bridges Spring Boot's Micrometer observation APIs with OpenTelemetry.
 - **OpenTelemetry Exporter OTLP (`opentelemetry-exporter-otlp`)**: Exports tracing data using the standard OpenTelemetry Protocol (OTLP) over HTTP/gRPC.
 
-No Java code modification was required because Spring Boot automatically configures tracers and interceptors when these dependencies are on the classpath.
+Java configuration was modified because custom `@Bean` definitions are used for `RabbitTemplate` and `SimpleRabbitListenerContainerFactory` (which bypasses automatic property binding). Observation had to be programmatically enabled by calling `.setObservationEnabled(true)` on these custom beans.
 
 ---
 
@@ -85,6 +85,10 @@ spring:
     template:
       observation-enabled: true
 ```
+
+> [!IMPORTANT]
+> Because custom `@Bean` definitions are used for `RabbitTemplate` and `SimpleRabbitListenerContainerFactory` in `RabbitMQConfig.java` across the services, the above `application.yml` properties are not automatically applied to them. Instead, we programmatically enable observation by calling `.setObservationEnabled(true)` on the customized `RabbitTemplate` and `SimpleRabbitListenerContainerFactory` beans.
+
 
 ### Environment Overrides (Docker vs. Local)
 
