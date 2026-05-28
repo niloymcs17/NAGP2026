@@ -6,6 +6,7 @@ import com.niloy.leave.model.LeaveBalance;
 import com.niloy.leave.model.LeaveRequest;
 import com.niloy.leave.repository.LeaveBalanceRepository;
 import com.niloy.leave.repository.LeaveRequestRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -20,6 +21,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/leaves")
 public class LeaveController {
@@ -53,7 +55,10 @@ public class LeaveController {
         request.setEmployeeId(employeeId);
         request.setStatus("PENDING");
 
+        log.info("Leave application received — employeeId={}, type={}, days={}", employeeId, request.getLeaveType(), request.getNumberOfDays());
+
         if (request.getStartDate().isBefore(LocalDate.now())) {
+            log.warn("Leave rejected — past start date — employeeId={}", employeeId);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Start date cannot be in the past");
         }
         if (request.getStartDate().isAfter(request.getEndDate())) {
@@ -80,13 +85,15 @@ public class LeaveController {
         }
 
         if (balance.getRemaining() < request.getNumberOfDays()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Insufficient leave balance. Remaining: " 
+            log.warn("Leave rejected — insufficient balance — employeeId={}, remaining={}, requested={}", employeeId, balance.getRemaining(), request.getNumberOfDays());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Insufficient leave balance. Remaining: "
                     + balance.getRemaining() + ", Requested: " + request.getNumberOfDays());
         }
 
         boolean hasOverlap = leaveRequestRepository.existsOverlappingRequest(
                 employeeId, request.getStartDate(), request.getEndDate());
         if (hasOverlap) {
+            log.warn("Leave rejected — overlapping dates — employeeId={}", employeeId);
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Overlapping leave request detected for these dates.");
         }
 
@@ -107,6 +114,7 @@ public class LeaveController {
         );
         rabbitTemplate.convertAndSend(RabbitMQConfig.LEAVE_EXCHANGE, RabbitMQConfig.LEAVE_ROUTING_KEY, event);
 
+        log.info("Leave applied successfully — leaveId={}, employeeId={}", savedRequest.getId(), employeeId);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedRequest);
     }
 
@@ -160,11 +168,13 @@ public class LeaveController {
             @RequestHeader("X-User-Role") String userRole) {
 
         if (!userRole.equals("MANAGER")) {
+            log.warn("Forbidden — userId={} (role={}) attempted manager-only operation", managerId, userRole);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only managers can approve leave requests");
         }
 
         LeaveRequest request = leaveRequestRepository.findById(id).orElse(null);
         if (request == null) {
+            log.warn("Leave request not found — id={}", id);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Leave request not found");
         }
 
@@ -205,6 +215,7 @@ public class LeaveController {
         );
         rabbitTemplate.convertAndSend(RabbitMQConfig.LEAVE_EXCHANGE, RabbitMQConfig.LEAVE_ROUTING_KEY, event);
 
+        log.info("Leave approved — leaveId={}, managerId={}", savedRequest.getId(), managerId);
         return ResponseEntity.ok(savedRequest);
     }
 
@@ -216,6 +227,7 @@ public class LeaveController {
             @RequestHeader("X-User-Role") String userRole) {
 
         if (!userRole.equals("MANAGER")) {
+            log.warn("Forbidden — userId={} (role={}) attempted manager-only operation", managerId, userRole);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only managers can reject leave requests");
         }
 
@@ -223,6 +235,7 @@ public class LeaveController {
 
         LeaveRequest request = leaveRequestRepository.findById(id).orElse(null);
         if (request == null) {
+            log.warn("Leave request not found — id={}", id);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Leave request not found");
         }
 
@@ -253,6 +266,7 @@ public class LeaveController {
         );
         rabbitTemplate.convertAndSend(RabbitMQConfig.LEAVE_EXCHANGE, RabbitMQConfig.LEAVE_ROUTING_KEY, event);
 
+        log.info("Leave rejected — leaveId={}, managerId={}", savedRequest.getId(), managerId);
         return ResponseEntity.ok(savedRequest);
     }
 
@@ -313,6 +327,7 @@ public class LeaveController {
         );
         rabbitTemplate.convertAndSend(RabbitMQConfig.LEAVE_EXCHANGE, RabbitMQConfig.LEAVE_ROUTING_KEY, event);
 
+        log.info("Leave cancelled \u2014 leaveId={}, employeeId={}", savedRequest.getId(), employeeId);
         return ResponseEntity.ok(savedRequest);
     }
 }

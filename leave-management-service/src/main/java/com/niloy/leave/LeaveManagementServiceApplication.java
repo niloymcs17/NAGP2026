@@ -2,12 +2,14 @@ package com.niloy.leave;
 
 import com.niloy.leave.model.LeaveBalance;
 import com.niloy.leave.repository.LeaveBalanceRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.annotation.Bean;
 
+@Slf4j
 @SpringBootApplication
 @EnableDiscoveryClient
 public class LeaveManagementServiceApplication {
@@ -34,7 +36,7 @@ public class LeaveManagementServiceApplication {
                 .isPresent();
         if (!exists) {
             repository.save(new LeaveBalance(null, employeeId, leaveType, allocated, 0));
-            System.out.println("Seeded " + leaveType + " balance for Employee ID: " + employeeId);
+            log.info("Default leave balances seeded for pre-existing employees.");
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.niloy.gateway.controller;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,6 +20,7 @@ import java.util.Map;
  * These endpoints are INTERNAL – they are only reachable via
  * "forward:/fallback/<service>" in the gateway route config, not directly from clients.
  */
+@Slf4j
 @RestController
 public class FallbackController {
 
@@ -26,6 +28,7 @@ public class FallbackController {
 
     @RequestMapping("/fallback/auth")
     public Mono<ResponseEntity<Map<String, Object>>> authServiceFallback() {
+        log.warn("Circuit breaker OPEN — fallback triggered for Authentication Service");
         return Mono.just(ResponseEntity
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(buildErrorBody(
@@ -40,6 +43,7 @@ public class FallbackController {
 
     @RequestMapping("/fallback/employee")
     public Mono<ResponseEntity<Map<String, Object>>> employeeServiceFallback() {
+        log.warn("Circuit breaker OPEN — fallback triggered for Employee Service");
         return Mono.just(ResponseEntity
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(buildErrorBody(
@@ -54,6 +58,7 @@ public class FallbackController {
 
     @RequestMapping("/fallback/leave")
     public Mono<ResponseEntity<Map<String, Object>>> leaveServiceFallback() {
+        log.warn("Circuit breaker OPEN — fallback triggered for Leave Management Service");
         return Mono.just(ResponseEntity
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(buildErrorBody(

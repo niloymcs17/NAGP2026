@@ -4,6 +4,7 @@ import com.niloy.employee.config.RabbitMQConfig;
 import com.niloy.employee.event.EmployeeCreatedEvent;
 import com.niloy.employee.model.Employee;
 import com.niloy.employee.repository.EmployeeRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -11,6 +12,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.annotation.Bean;
 
+@Slf4j
 @SpringBootApplication
 @EnableDiscoveryClient
 public class EmployeeServiceApplication {
@@ -37,7 +39,7 @@ public class EmployeeServiceApplication {
                 employeeRepository.save(emp2);
                 publishEvent(rabbitTemplate, emp2);
 
-                System.out.println("Mock employees seeded and events published.");
+                log.info("Mock employees seeded and events published.");
             }
         };
     }
@@ -53,7 +55,7 @@ public class EmployeeServiceApplication {
             );
             rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, RabbitMQConfig.ROUTING_KEY, event);
         } catch (Exception e) {
-            System.err.println("Failed to publish employee created event for " + employee.getUsername() + ": " + e.getMessage());
+            log.error("Failed to publish employee.created event for username={}", employee.getUsername(), e);
         }
     }
 }

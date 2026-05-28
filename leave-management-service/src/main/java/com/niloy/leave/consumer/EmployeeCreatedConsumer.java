@@ -4,10 +4,12 @@ import com.niloy.leave.config.RabbitMQConfig;
 import com.niloy.leave.event.EmployeeCreatedEvent;
 import com.niloy.leave.model.LeaveBalance;
 import com.niloy.leave.repository.LeaveBalanceRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class EmployeeCreatedConsumer {
 
@@ -16,14 +18,14 @@ public class EmployeeCreatedConsumer {
 
     @RabbitListener(queues = RabbitMQConfig.EMPLOYEE_QUEUE)
     public void consumeEmployeeCreated(EmployeeCreatedEvent event) {
-        System.out.println("Consuming employee.created event for: " + event.getUsername());
+        log.info("Received employee.created event — employeeId={}, username={}", event.getEmployeeId(), event.getUsername());
 
         // Check and insert each leave type individually to be idempotent.
         // If a message is redelivered (e.g. after a restart), we skip types already initialized.
         initBalanceIfAbsent(event.getEmployeeId(), "CASUAL",    12);
         initBalanceIfAbsent(event.getEmployeeId(), "SICK",      10);
         initBalanceIfAbsent(event.getEmployeeId(), "PRIVILEGE", 15);
-        System.out.println("Leave balances verified/initialized for Employee ID: " + event.getEmployeeId());
+        log.info("Leave balances initialized — employeeId={}", event.getEmployeeId());
     }
 
     private void initBalanceIfAbsent(Long employeeId, String leaveType, int allocated) {
@@ -32,7 +34,8 @@ public class EmployeeCreatedConsumer {
                 .isPresent();
         if (!exists) {
             leaveBalanceRepository.save(new LeaveBalance(null, employeeId, leaveType, allocated, 0));
-            System.out.println("  Initialized " + leaveType + " balance for Employee ID: " + employeeId);
+            log.debug("Leave balances already exist for employeeId={} — skipping", employeeId);
         }
     }
 }
+
