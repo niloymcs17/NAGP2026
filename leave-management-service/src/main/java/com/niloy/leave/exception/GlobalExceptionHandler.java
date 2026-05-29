@@ -17,6 +17,7 @@ public class GlobalExceptionHandler {
     // 404 – Resource not found
     @ExceptionHandler(LeaveRequestNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(LeaveRequestNotFoundException ex, HttpServletRequest req) {
+        log.warn("Leave request not found at [{}]: {}", req.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(ErrorResponse.of(404, "Not Found", ex.getMessage(), req.getRequestURI()));
@@ -28,6 +29,7 @@ public class GlobalExceptionHandler {
         InvalidLeaveRequestException.class
     })
     public ResponseEntity<ErrorResponse> handleBadRequest(RuntimeException ex, HttpServletRequest req) {
+        log.warn("Bad request at [{}]: {}", req.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(400, "Bad Request", ex.getMessage(), req.getRequestURI()));
@@ -36,6 +38,7 @@ public class GlobalExceptionHandler {
     // 409 – Conflict (overlapping leave)
     @ExceptionHandler(LeaveConflictException.class)
     public ResponseEntity<ErrorResponse> handleConflict(LeaveConflictException ex, HttpServletRequest req) {
+        log.warn("Conflict at [{}]: {}", req.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(ErrorResponse.of(409, "Conflict", ex.getMessage(), req.getRequestURI()));
@@ -44,6 +47,7 @@ public class GlobalExceptionHandler {
     // 403 – Forbidden / role-based access
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleForbidden(AccessDeniedException ex, HttpServletRequest req) {
+        log.warn("Access denied at [{}]: {}", req.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(ErrorResponse.of(403, "Forbidden", ex.getMessage(), req.getRequestURI()));
@@ -56,6 +60,7 @@ public class GlobalExceptionHandler {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining(", "));
+        log.warn("Validation failed at [{}]: {}", req.getRequestURI(), message);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(400, "Validation Failed", message, req.getRequestURI()));

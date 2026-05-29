@@ -157,17 +157,20 @@ Each of the three Spring MVC services has a `GlobalExceptionHandler` annotated w
 **File:** `<service>/src/main/java/com/niloy/<module>/exception/GlobalExceptionHandler.java`
 
 ```java
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(EmployeeNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(EmployeeNotFoundException ex, HttpServletRequest req) {
+        log.warn("Resource not found at [{}]: {}", req.getRequestURI(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ErrorResponse.of(404, "Not Found", ex.getMessage(), req.getRequestURI()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleForbidden(AccessDeniedException ex, HttpServletRequest req) {
+        log.warn("Access denied at [{}]: {}", req.getRequestURI(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ErrorResponse.of(403, "Forbidden", ex.getMessage(), req.getRequestURI()));
     }
@@ -178,6 +181,7 @@ public class GlobalExceptionHandler {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining(", "));
+        log.warn("Validation failed at [{}]: {}", req.getRequestURI(), message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(400, "Validation Failed", message, req.getRequestURI()));
     }
@@ -185,6 +189,7 @@ public class GlobalExceptionHandler {
     // Catch-all safety net
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest req) {
+        log.error("Unhandled exception at [{}]: {}", req.getRequestURI(), ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(500, "Internal Server Error",
                         "An unexpected error occurred. Please try again later.", req.getRequestURI()));

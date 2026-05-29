@@ -17,6 +17,7 @@ public class GlobalExceptionHandler {
     // 401 – Invalid credentials
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorized(InvalidCredentialsException ex, HttpServletRequest req) {
+        log.warn("Unauthorized access at [{}]: {}", req.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
                 .body(ErrorResponse.of(401, "Unauthorized", ex.getMessage(), req.getRequestURI()));
@@ -29,6 +30,7 @@ public class GlobalExceptionHandler {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining(", "));
+        log.warn("Validation failed at [{}]: {}", req.getRequestURI(), message);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(400, "Validation Failed", message, req.getRequestURI()));
