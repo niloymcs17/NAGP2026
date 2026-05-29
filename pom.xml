@@ -63,6 +63,13 @@
                 <version>${jjwt.version}</version>
                 <scope>runtime</scope>
             </dependency>
+
+            <!-- ELK / Structured Logging -->
+            <dependency>
+                <groupId>net.logstash.logback</groupId>
+                <artifactId>logstash-logback-encoder</artifactId>
+                <version>7.4</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -72,6 +79,12 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!-- Structured JSON logging for ELK stack -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
         </dependency>
     </dependencies>
 </project>

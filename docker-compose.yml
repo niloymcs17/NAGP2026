@@ -20,6 +20,64 @@ services:
       - "4318:4318"   # OTLP HTTP receiver
       - "9411:9411"   # Zipkin v2 json receiver
 
+  # ── ELK Stack ──────────────────────────────────────────────────────────────
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false   # disabled for dev simplicity
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.13.0
+    container_name: logstash
+    ports:
+      - "5044:5044"   # Beats input
+      - "9600:9600"   # Logstash API
+    volumes:
+      - ./elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.0
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.13.0
+    container_name: filebeat
+    user: root
+    # --strict.perms=false is required on Windows hosts — Docker mounts
+    # Windows filesystem files with 777 permissions, which Filebeat rejects.
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    volumes:
+      - ./elk/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - logstash
+
+  # ── Microservices ──────────────────────────────────────────────────────────
+
   eureka-server:
     build:
       context: .
@@ -28,6 +86,8 @@ services:
     container_name: eureka-server
     ports:
       - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
 
   api-gateway:
     build:
@@ -40,6 +100,7 @@ services:
     depends_on:
       - eureka-server
     environment:
+      - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_CLOUD_GATEWAY_DISCOVERY_LOCATOR_ENABLED=true
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
@@ -55,6 +116,7 @@ services:
     depends_on:
       - eureka-server
     environment:
+      - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
 
@@ -70,6 +132,7 @@ services:
       - eureka-server
       - rabbitmq
     environment:
+      - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_RABBITMQ_HOST=rabbitmq
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
@@ -86,6 +149,7 @@ services:
       - eureka-server
       - rabbitmq
     environment:
+      - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_RABBITMQ_HOST=rabbitmq
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
@@ -102,6 +166,11 @@ services:
       - eureka-server
       - rabbitmq
     environment:
+      - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_RABBITMQ_HOST=rabbitmq
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
+
+volumes:
+  esdata:
+    driver: local
