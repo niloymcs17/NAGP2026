@@ -21,7 +21,8 @@ spring:
 eureka:
   instance:
     prefer-ip-address: true
-    hostname: localhost
+    # hostname removed — each Docker container registers its own IP with Eureka,
+    # enabling the load balancer to route to distinct instances when scaled
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/

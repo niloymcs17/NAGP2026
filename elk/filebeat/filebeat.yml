@@ -4,21 +4,8 @@ filebeat.autodiscover:
       hints.enabled: true
       templates:
         - condition:
-            or:
-              - contains:
-                  docker.container.image: "dreamspace04/"
-              - equals:
-                  docker.container.name: "eureka-server"
-              - equals:
-                  docker.container.name: "api-gateway"
-              - equals:
-                  docker.container.name: "authentication-service"
-              - equals:
-                  docker.container.name: "employee-service"
-              - equals:
-                  docker.container.name: "leave-management-service"
-              - equals:
-                  docker.container.name: "notification-service"
+            contains:
+              docker.container.image: "dreamspace04/"
           config:
             - type: container
               paths:

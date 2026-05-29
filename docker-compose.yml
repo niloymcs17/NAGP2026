@@ -110,9 +110,8 @@ services:
       context: .
       dockerfile: authentication-service/Dockerfile
     image: dreamspace04/authentication-service:latest
-    container_name: authentication-service
-    ports:
-      - "8081:8081"
+    deploy:
+      replicas: 2   # run 2 instances by default for load balancing
     depends_on:
       - eureka-server
     environment:
@@ -125,9 +124,8 @@ services:
       context: .
       dockerfile: employee-service/Dockerfile
     image: dreamspace04/employee-service:latest
-    container_name: employee-service
-    ports:
-      - "8082:8082"
+    deploy:
+      replicas: 2   # run 2 instances by default for load balancing
     depends_on:
       - eureka-server
       - rabbitmq
@@ -142,9 +140,8 @@ services:
       context: .
       dockerfile: leave-management-service/Dockerfile
     image: dreamspace04/leave-management-service:latest
-    container_name: leave-management-service
-    ports:
-      - "8083:8083"
+    deploy:
+      replicas: 2   # run 2 instances by default for load balancing
     depends_on:
       - eureka-server
       - rabbitmq
