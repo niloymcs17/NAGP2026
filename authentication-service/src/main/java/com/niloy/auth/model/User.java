@@ -18,6 +18,9 @@ public class User {
     @Column(nullable = false)
     private String role; // "EMPLOYEE" or "MANAGER"
 
+    @Version
+    private Integer version;
+
     // Default constructor
     public User() {
     }
@@ -61,5 +64,13 @@ public class User {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public Integer getVersion() {
+        return version;
+    }
+
+    public void setVersion(Integer version) {
+        this.version = version;
     }
 }

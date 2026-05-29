@@ -76,6 +76,24 @@ services:
     depends_on:
       - logstash
 
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: postgres-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # ── Microservices ──────────────────────────────────────────────────────────
 
   eureka-server:
@@ -113,11 +131,19 @@ services:
     deploy:
       replicas: 2   # run 2 instances by default for load balancing
     depends_on:
-      - eureka-server
+      eureka-server:
+        condition: service_started
+      postgres-db:
+        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/authdb
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=admin
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
 
   employee-service:
     build:
@@ -127,13 +153,22 @@ services:
     deploy:
       replicas: 2   # run 2 instances by default for load balancing
     depends_on:
-      - eureka-server
-      - rabbitmq
+      eureka-server:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      postgres-db:
+        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_RABBITMQ_HOST=rabbitmq
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/employeedb
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=admin
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
 
   leave-management-service:
     build:
@@ -143,13 +178,22 @@ services:
     deploy:
       replicas: 2   # run 2 instances by default for load balancing
     depends_on:
-      - eureka-server
-      - rabbitmq
+      eureka-server:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      postgres-db:
+        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_RABBITMQ_HOST=rabbitmq
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/leavedb
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=admin
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
 
   notification-service:
     build:
@@ -170,4 +214,6 @@ services:
 
 volumes:
   esdata:
+    driver: local
+  pgdata:
     driver: local

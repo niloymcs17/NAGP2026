@@ -22,6 +22,9 @@ public class Employee {
 
     private Long managerId;
 
+    @Version
+    private Integer version;
+
     public Employee() {
     }
 
@@ -80,5 +83,13 @@ public class Employee {
 
     public void setManagerId(Long managerId) {
         this.managerId = managerId;
+    }
+
+    public Integer getVersion() {
+        return version;
+    }
+
+    public void setVersion(Integer version) {
+        this.version = version;
     }
 }

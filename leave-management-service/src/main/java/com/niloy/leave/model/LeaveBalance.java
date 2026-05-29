@@ -25,6 +25,9 @@ public class LeaveBalance {
     @Column(nullable = false)
     private int used;
 
+    @Version
+    private Integer version;
+
     public LeaveBalance() {
     }
 
@@ -78,5 +81,13 @@ public class LeaveBalance {
 
     public int getRemaining() {
         return allocated - used;
+    }
+
+    public Integer getVersion() {
+        return version;
+    }
+
+    public void setVersion(Integer version) {
+        this.version = version;
     }
 }

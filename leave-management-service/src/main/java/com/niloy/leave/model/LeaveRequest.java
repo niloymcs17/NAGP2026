@@ -36,6 +36,9 @@ public class LeaveRequest {
 
     private String rejectionReason;
 
+    @Version
+    private Integer version;
+
     public LeaveRequest() {
     }
 
@@ -130,5 +133,13 @@ public class LeaveRequest {
 
     public void setRejectionReason(String rejectionReason) {
         this.rejectionReason = rejectionReason;
+    }
+
+    public Integer getVersion() {
+        return version;
+    }
+
+    public void setVersion(Integer version) {
+        this.version = version;
     }
 }

@@ -54,6 +54,18 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(400, "Validation Failed", message, req.getRequestURI()));
     }
 
+    // 409 – Concurrent Update / Optimistic Locking Failure
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLocking(
+            org.springframework.orm.ObjectOptimisticLockingFailureException ex, HttpServletRequest req) {
+        log.warn("Concurrent modification failed at [{}]: {}", req.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of(409, "Conflict", 
+                        "The resource was updated concurrently by another request. Please reload and try again.", 
+                        req.getRequestURI()));
+    }
+
     // 500 – Catch-all for unexpected exceptions
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest req) {
