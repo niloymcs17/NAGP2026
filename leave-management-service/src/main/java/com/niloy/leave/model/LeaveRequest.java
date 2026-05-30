@@ -2,6 +2,7 @@ package com.niloy.leave.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 @Entity
 @Table(name = "leave_requests")
@@ -17,9 +18,11 @@ public class LeaveRequest {
     private String leaveType;
 
     @Column(nullable = false)
+    @JsonFormat(pattern = "yyyy-M-d")
     private LocalDate startDate;
 
     @Column(nullable = false)
+    @JsonFormat(pattern = "yyyy-M-d")
     private LocalDate endDate;
 
     @Column(nullable = false)

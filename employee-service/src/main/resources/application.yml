@@ -35,6 +35,13 @@ eureka:
 
 # ── Distributed Tracing ──────────────────────────────────────────────────────
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
   otlp:
     tracing:
       endpoint: http://localhost:4318/v1/traces

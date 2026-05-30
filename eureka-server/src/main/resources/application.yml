@@ -12,6 +12,15 @@ eureka:
   server:
     wait-time-in-ms-when-sync-empty: 0
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
 # ── Logging ──────────────────────────────────────────────────────────────────
 logging:
   level:
