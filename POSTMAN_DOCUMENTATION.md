@@ -3,7 +3,7 @@
 This document provides a step-by-step guide to import, configure, and execute the API requests in the **NAGP Leave Portal** Postman Collection.
 
 The collection is located in your workspace root: 
-👉 [Leave_Portal.postman_collection.json](file:///g:/NAGP2026/Leave_Portal.postman_collection.json)
+👉 [Leave_Portal.postman_collection.json](/Leave_Portal.postman_collection.json)
 
 ---
 

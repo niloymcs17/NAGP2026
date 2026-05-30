@@ -115,7 +115,7 @@ flowchart LR
 
 ### 1. Parent POM — `pom.xml`
 
-[pom.xml](file:///g:/NAGP2026/pom.xml) was modified to include the encoder in two places:
+[pom.xml](/pom.xml) was modified to include the encoder in two places:
 
 ```xml
 <!-- dependencyManagement — pins the version -->
@@ -189,12 +189,12 @@ A `logback-spring.xml` file was created in `src/main/resources/` for every servi
 ```
 
 **Files created:**
-- [api-gateway/logback-spring.xml](file:///g:/NAGP2026/api-gateway/src/main/resources/logback-spring.xml)
-- [authentication-service/logback-spring.xml](file:///g:/NAGP2026/authentication-service/src/main/resources/logback-spring.xml)
-- [employee-service/logback-spring.xml](file:///g:/NAGP2026/employee-service/src/main/resources/logback-spring.xml)
-- [leave-management-service/logback-spring.xml](file:///g:/NAGP2026/leave-management-service/src/main/resources/logback-spring.xml)
-- [notification-service/logback-spring.xml](file:///g:/NAGP2026/notification-service/src/main/resources/logback-spring.xml)
-- [eureka-server/logback-spring.xml](file:///g:/NAGP2026/eureka-server/src/main/resources/logback-spring.xml)
+- [api-gateway/logback-spring.xml](/api-gateway/src/main/resources/logback-spring.xml)
+- [authentication-service/logback-spring.xml](/authentication-service/src/main/resources/logback-spring.xml)
+- [employee-service/logback-spring.xml](/employee-service/src/main/resources/logback-spring.xml)
+- [leave-management-service/logback-spring.xml](/leave-management-service/src/main/resources/logback-spring.xml)
+- [notification-service/logback-spring.xml](/notification-service/src/main/resources/logback-spring.xml)
+- [eureka-server/logback-spring.xml](/eureka-server/src/main/resources/logback-spring.xml)
 
 > [!IMPORTANT]
 > The `service` field in every JSON log event is automatically populated from `spring.application.name` via the `<springProperty>` tag. This is the field you use in Kibana to filter logs by service — e.g. `service: leave-management-service`.
@@ -215,13 +215,13 @@ logging:
     org.hibernate: WARN
 ```
 
-**File modified:** [eureka-server/application.yml](file:///g:/NAGP2026/eureka-server/src/main/resources/application.yml) — also had `spring.application.name: eureka-server` added (required by `logback-spring.xml`'s `<springProperty>`).
+**File modified:** [eureka-server/application.yml](/eureka-server/src/main/resources/application.yml) — also had `spring.application.name: eureka-server` added (required by `logback-spring.xml`'s `<springProperty>`).
 
 ---
 
 ### 4. Logstash Pipeline — `elk/logstash/pipeline/logstash.conf`
 
-[logstash.conf](file:///g:/NAGP2026/elk/logstash/pipeline/logstash.conf) defines the full log processing pipeline:
+[logstash.conf](/elk/logstash/pipeline/logstash.conf) defines the full log processing pipeline:
 
 ```text
 input {
@@ -265,7 +265,7 @@ output {
 
 ### 5. Filebeat Configuration — `elk/filebeat/filebeat.yml`
 
-[filebeat.yml](file:///g:/NAGP2026/elk/filebeat/filebeat.yml) configures the log shipper:
+[filebeat.yml](/elk/filebeat/filebeat.yml) configures the log shipper:
 
 ```yaml
 filebeat.autodiscover:
@@ -302,7 +302,7 @@ logging.level: info
 
 ### 6. Docker Compose — `docker-compose.yml`
 
-[docker-compose.yml](file:///g:/NAGP2026/docker-compose.yml) was updated with two categories of changes:
+[docker-compose.yml](/docker-compose.yml) was updated with two categories of changes:
 
 #### New ELK containers
 
@@ -583,7 +583,7 @@ g:\NAGP2026\
 
 - Widen the time range filter (top-right of Discover page).
 - Make sure the index pattern `leave-portal-logs-*` was created with `@timestamp` as the time field.
-- Trigger some API calls to generate log events (see the [API endpoints documentation](file:///g:/NAGP2026/documentation/api_endpoints.md)).
+- Trigger some API calls to generate log events (see the [API endpoints documentation](/documentation/api_endpoints.md)).
 
 ### Logstash fails to start
 
@@ -601,6 +601,6 @@ Common cause: insufficient Docker memory. Increase Docker Desktop memory allocat
 
 ## Related Documentation
 
-- [Logging — SLF4J/Logback Implementation](file:///g:/NAGP2026/documentation/cross-cutting-concerns/logging.md) — How structured log statements are written in Java code using `@Slf4j`
-- [Distributed Tracing — Jaeger](file:///g:/NAGP2026/documentation/cross-cutting-concerns/distributed_tracing.md) — How `traceId` correlates requests across services (combine with Kibana for full observability)
-- [Circuit Breaker Pattern](file:///g:/NAGP2026/documentation/cross-cutting-concerns/circuit_breaker_pattern.md) — Circuit breaker state transitions are logged at `WARN` level and searchable in Kibana
+- [Logging — SLF4J/Logback Implementation](/documentation/cross-cutting-concerns/logging.md) — How structured log statements are written in Java code using `@Slf4j`
+- [Distributed Tracing — Jaeger](/documentation/cross-cutting-concerns/distributed_tracing.md) — How `traceId` correlates requests across services (combine with Kibana for full observability)
+- [Circuit Breaker Pattern](/documentation/cross-cutting-concerns/circuit_breaker_pattern.md) — Circuit breaker state transitions are logged at `WARN` level and searchable in Kibana

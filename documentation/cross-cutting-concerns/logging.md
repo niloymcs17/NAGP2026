@@ -243,7 +243,7 @@ java -jar target/leave-management-service-0.0.1-SNAPSHOT.jar
 ```
 
 ### 2. Running via Docker Compose
-When running the application stack via [docker-compose.yml](file:///g:/NAGP2026/docker-compose.yml):
+When running the application stack via [docker-compose.yml](/docker-compose.yml):
 * **Tail logs for all services:**
   ```bash
   docker-compose logs -f
@@ -267,4 +267,4 @@ logging:
 This will automatically generate a rolling log file under a `logs/` directory relative to the directory from which the application is run.
 
 ### 4. Distributed Tracing Correlation
-Since OpenTelemetry and Jaeger are integrated in this workspace (see [distributed-tracing.md](file:///g:/NAGP2026/documentation/cross-cutting-concerns/distributed_tracing.md)), every log statement is automatically decorated with the current `traceId` and `spanId` when a distributed tracing context is active. This allows you to track a request flow across all microservices.
+Since OpenTelemetry and Jaeger are integrated in this workspace (see [distributed-tracing.md](/documentation/cross-cutting-concerns/distributed_tracing.md)), every log statement is automatically decorated with the current `traceId` and `spanId` when a distributed tracing context is active. This allows you to track a request flow across all microservices.
