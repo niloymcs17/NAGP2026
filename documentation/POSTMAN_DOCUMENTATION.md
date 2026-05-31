@@ -3,7 +3,7 @@
 This document provides a step-by-step guide to import, configure, and execute the API requests in the **NAGP Leave Portal** Postman Collection.
 
 The collection is located in your workspace root: 
-👉 [Leave_Portal.postman_collection.json](/Leave_Portal.postman_collection.json)
+👉 [Leave_Portal.postman_collection.json](../Leave_Portal.postman_collection.json)
 
 ---
 
@@ -65,6 +65,8 @@ Double-click and open the **2. Leave Operations (Employee)** folder. Ensure you 
    - Triggers a console log event in the **`notification-service`**.
 3. **View Leave History** (`GET /leaves/history`)
    - Retrieves list of leaves with query parameters for filtering (`status=ALL`) and pagination (`page=0`, `size=10`).
+4. **Cancel Pending Request** (`POST /leaves/{{leaveRequestId}}/cancel`)
+   - Cancels a leave request that is still in `PENDING` status.
 
 ---
 
@@ -75,10 +77,10 @@ To test approvals/rejections, you must authenticate as **Manager 1**:
 
 1. **Get Team Pending Requests** (`GET /leaves/pending?status=PENDING`)
    - Retrieves pending requests from team members reporting to manager ID `3`.
-2. **Approve Leave Request** (`POST /leaves/{id}/approve`)
+2. **Approve Leave Request** (`POST /leaves/{{leaveRequestId}}/approve`)
    - Note: Set the variable `leaveRequestId` in your collection variables (or replace the URL parameter manually) to match the ID of the request you want to approve.
    - Deducts the requested days from the employee's balance and marks the status as `APPROVED`.
-3. **Reject Leave Request** (`POST /leaves/{id}/reject`)
+3. **Reject Leave Request** (`POST /leaves/{{leaveRequestId}}/reject`)
    - Submits comments in the JSON body (e.g. `{"comment": "Business conflicts"}`).
    - Sets the status to `REJECTED` and logs the reason.
 
