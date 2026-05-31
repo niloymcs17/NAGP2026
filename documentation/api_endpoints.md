@@ -1,6 +1,17 @@
 # API Endpoint Documentation
 
-This document provides a comprehensive catalog of the REST APIs exposed by the ** Leave Portal**, routing through the API Gateway at `http://localhost:8080`.
+This document provides a comprehensive catalog of the REST APIs exposed by the **Leave Portal**, routing through the API Gateway at `http://localhost:8080`.
+
+> **Note on Error Responses**: All error responses across every service are returned as a structured JSON `ErrorResponse` object (not plain text), with the following shape:
+> ```json
+> {
+>     "status": 400,
+>     "error": "Bad Request",
+>     "message": "Human-readable error detail",
+>     "path": "/leaves/apply"
+> }
+> ```
+> The HTTP status codes and example `message` values are documented per endpoint below.
 
 ---
 
@@ -28,8 +39,13 @@ Authenticate credentials and obtain a JWT Bearer Token.
   }
   ```
 * **Response (401 Unauthorized)**:
-  ```text
-  Invalid username or password
+  ```json
+  {
+      "status": 401,
+      "error": "Unauthorized",
+      "message": "Invalid username or password",
+      "path": "/auth/login"
+  }
   ```
 
 ---
@@ -70,6 +86,17 @@ Retrieve the logged-in user's leave balances.
       }
   ]
   ```
+  > **Note**: `remaining` is a derived field (`allocated - used`) computed at runtime; it is not stored in the database.
+
+* **Response (404 Not Found — no leave balance record exists)**:
+  ```json
+  {
+      "status": 404,
+      "error": "Not Found",
+      "message": "No leave balance found for employee ID: 1",
+      "path": "/leaves/balances"
+  }
+  ```
 
 ### Apply for Leave (Employee)
 Submit a leave request.
@@ -81,11 +108,12 @@ Submit a leave request.
       "leaveType": "CASUAL",
       "startDate": "2026-06-01",
       "endDate": "2026-06-03",
-      "numberOfDays": 3,
       "reason": "Family vacation",
       "managerId": 3
   }
   ```
+  > **Note**: The `numberOfDays` field is **always auto-calculated** by the server from the `startDate`/`endDate` range, excluding weekends and public holidays. Any client-supplied value for `numberOfDays` is ignored and overwritten.
+
 * **Response (201 Created)**:
   ```json
   {
@@ -101,25 +129,67 @@ Submit a leave request.
       "rejectionReason": null
   }
   ```
-* **Response (400 Bad Request - Date Ranges)**:
-  ```text
-  Start date cannot be in the past
+* **Response (400 Bad Request — start date in the past)**:
+  ```json
+  {
+      "status": 400,
+      "error": "Bad Request",
+      "message": "Start date cannot be in the past",
+      "path": "/leaves/apply"
+  }
   ```
-* **Response (400 Bad Request - Balance)**:
-  ```text
-  Insufficient leave balance. Remaining: 2, Requested: 3
+* **Response (400 Bad Request — invalid date range)**:
+  ```json
+  {
+      "status": 400,
+      "error": "Bad Request",
+      "message": "Start date must be less than or equal to end date",
+      "path": "/leaves/apply"
+  }
   ```
-* **Response (409 Conflict - Overlapping dates)**:
-  ```text
-  Overlapping leave request detected for these dates.
+* **Response (400 Bad Request — no working days in range)**:
+  ```json
+  {
+      "status": 400,
+      "error": "Bad Request",
+      "message": "Leave request must cover at least one working day (excluding weekends and public holidays)",
+      "path": "/leaves/apply"
+  }
+  ```
+* **Response (400 Bad Request — invalid leave type)**:
+  ```json
+  {
+      "status": 400,
+      "error": "Bad Request",
+      "message": "Invalid leave type. Must be CASUAL, SICK, or PRIVILEGE",
+      "path": "/leaves/apply"
+  }
+  ```
+* **Response (400 Bad Request — insufficient balance)**:
+  ```json
+  {
+      "status": 400,
+      "error": "Bad Request",
+      "message": "Insufficient leave balance. Remaining: 2, Requested: 3",
+      "path": "/leaves/apply"
+  }
+  ```
+* **Response (409 Conflict — overlapping dates)**:
+  ```json
+  {
+      "status": 409,
+      "error": "Conflict",
+      "message": "Overlapping leave request detected for these dates.",
+      "path": "/leaves/apply"
+  }
   ```
 
-### Get Team Pending Requests (Manager)
-Retrieve pending leave requests from team members reporting to this manager.
+### Get Team Leave Requests (Manager)
+Retrieve leave requests from team members reporting to this manager. Supports filtering by status, employee, and date range.
 * **HTTP Method**: `GET`
 * **Path**: `/leaves/pending`
 * **Query Parameters (Optional)**:
-  - `status`: `PENDING` / `APPROVED` / `REJECTED`
+  - `status`: `PENDING` / `APPROVED` / `REJECTED` / `CANCELLED` (omit to return all statuses)
   - `employeeId`: `1`
   - `startDate`: `2026-06-01`
   - `endDate`: `2026-06-10`
@@ -140,6 +210,15 @@ Retrieve pending leave requests from team members reporting to this manager.
       }
   ]
   ```
+* **Response (403 Forbidden — caller is not a manager)**:
+  ```json
+  {
+      "status": 403,
+      "error": "Forbidden",
+      "message": "Only managers can view team leave requests",
+      "path": "/leaves/pending"
+  }
+  ```
 
 ### Approve Leave Request (Manager)
 Approve a pending leave request and deduct the leave days from the employee's balance.
@@ -158,6 +237,42 @@ Approve a pending leave request and deduct the leave days from the employee's ba
       "managerId": 3,
       "status": "APPROVED",
       "rejectionReason": null
+  }
+  ```
+* **Response (403 Forbidden — caller is not a manager)**:
+  ```json
+  {
+      "status": 403,
+      "error": "Forbidden",
+      "message": "Only managers can approve leave requests",
+      "path": "/leaves/1/approve"
+  }
+  ```
+* **Response (403 Forbidden — manager is not assigned to this request)**:
+  ```json
+  {
+      "status": 403,
+      "error": "Forbidden",
+      "message": "You are not authorized to approve this request",
+      "path": "/leaves/1/approve"
+  }
+  ```
+* **Response (400 Bad Request — request is not in PENDING status)**:
+  ```json
+  {
+      "status": 400,
+      "error": "Bad Request",
+      "message": "Only PENDING requests can be approved. Current status: APPROVED",
+      "path": "/leaves/1/approve"
+  }
+  ```
+* **Response (404 Not Found)**:
+  ```json
+  {
+      "status": 404,
+      "error": "Not Found",
+      "message": "Leave request not found for ID: 1",
+      "path": "/leaves/1/approve"
   }
   ```
 
@@ -184,6 +299,42 @@ Reject a pending leave request and provide a comment.
       "managerId": 3,
       "status": "REJECTED",
       "rejectionReason": "Project deadlines call for all hands on deck."
+  }
+  ```
+* **Response (403 Forbidden — caller is not a manager)**:
+  ```json
+  {
+      "status": 403,
+      "error": "Forbidden",
+      "message": "Only managers can reject leave requests",
+      "path": "/leaves/1/reject"
+  }
+  ```
+* **Response (403 Forbidden — manager is not assigned to this request)**:
+  ```json
+  {
+      "status": 403,
+      "error": "Forbidden",
+      "message": "You are not authorized to reject this request",
+      "path": "/leaves/1/reject"
+  }
+  ```
+* **Response (400 Bad Request — request is not in PENDING status)**:
+  ```json
+  {
+      "status": 400,
+      "error": "Bad Request",
+      "message": "Only PENDING requests can be rejected. Current status: APPROVED",
+      "path": "/leaves/1/reject"
+  }
+  ```
+* **Response (404 Not Found)**:
+  ```json
+  {
+      "status": 404,
+      "error": "Not Found",
+      "message": "Leave request not found for ID: 1",
+      "path": "/leaves/1/reject"
   }
   ```
 
@@ -225,6 +376,7 @@ View leave application history with pagination and status filtering.
       "last": true
   }
   ```
+  > **Note**: Results are sorted by `startDate` descending.
 
 ### Cancel Leave Request (Employee)
 Cancel a request while it is still in `PENDING` status.
@@ -243,6 +395,33 @@ Cancel a request while it is still in `PENDING` status.
       "managerId": 3,
       "status": "CANCELLED",
       "rejectionReason": null
+  }
+  ```
+* **Response (403 Forbidden — caller does not own this request)**:
+  ```json
+  {
+      "status": 403,
+      "error": "Forbidden",
+      "message": "You are not authorized to cancel this request",
+      "path": "/leaves/1/cancel"
+  }
+  ```
+* **Response (400 Bad Request — request is not in PENDING status)**:
+  ```json
+  {
+      "status": 400,
+      "error": "Bad Request",
+      "message": "Only PENDING requests can be cancelled. Current status: APPROVED",
+      "path": "/leaves/1/cancel"
+  }
+  ```
+* **Response (404 Not Found)**:
+  ```json
+  {
+      "status": 404,
+      "error": "Not Found",
+      "message": "Leave request not found for ID: 1",
+      "path": "/leaves/1/cancel"
   }
   ```
 
@@ -266,9 +445,32 @@ Fetch employee record details.
       "managerId": 3
   }
   ```
-* **Response (403 Forbidden - Requesting another user's profile)**:
-  ```text
-  Access denied. Employees can only access their own data.
+* **Response (403 Forbidden — employee requesting another user's profile)**:
+  ```json
+  {
+      "status": 403,
+      "error": "Forbidden",
+      "message": "Access denied. Employees can only access their own data.",
+      "path": "/employees/2"
+  }
+  ```
+* **Response (403 Forbidden — manager requesting a non-team member's profile)**:
+  ```json
+  {
+      "status": 403,
+      "error": "Forbidden",
+      "message": "Access denied. Managers can only access their own or their team members' data.",
+      "path": "/employees/5"
+  }
+  ```
+* **Response (404 Not Found)**:
+  ```json
+  {
+      "status": 404,
+      "error": "Not Found",
+      "message": "Employee not found for ID: 1",
+      "path": "/employees/1"
+  }
   ```
 
 ### Get Team List (Manager Only)
@@ -296,9 +498,18 @@ Retrieve the list of employees reporting to this manager.
       }
   ]
   ```
+* **Response (403 Forbidden — caller is not a manager)**:
+  ```json
+  {
+      "status": 403,
+      "error": "Forbidden",
+      "message": "Access denied. Only managers can view team members.",
+      "path": "/employees/team"
+  }
+  ```
 
 ### Create Employee (Manager Only)
-Creates a new employee record and fires RabbitMQ initialization triggers.
+Creates a new employee record and fires RabbitMQ initialization triggers (to provision leave balances via the notification service).
 * **HTTP Method**: `POST`
 * **Path**: `/employees`
 * **Request Body**:
@@ -312,6 +523,8 @@ Creates a new employee record and fires RabbitMQ initialization triggers.
       "managerId": 3
   }
   ```
+  > **Important**: The `id` field must match the **User ID from the Authentication Service**. The Employee Service does not auto-generate IDs — it will reject the request if the `id` already exists.
+
 * **Response (201 Created)**:
   ```json
   {
@@ -321,5 +534,23 @@ Creates a new employee record and fires RabbitMQ initialization triggers.
       "email": "employee3@company.com",
       "role": "EMPLOYEE",
       "managerId": 3
+  }
+  ```
+* **Response (403 Forbidden — caller is not a manager)**:
+  ```json
+  {
+      "status": 403,
+      "error": "Forbidden",
+      "message": "Only managers can create employees",
+      "path": "/employees"
+  }
+  ```
+* **Response (400 Bad Request — employee ID already exists)**:
+  ```json
+  {
+      "status": 400,
+      "error": "Bad Request",
+      "message": "Employee with ID 4 already exists",
+      "path": "/employees"
   }
   ```

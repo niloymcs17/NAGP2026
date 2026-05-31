@@ -516,18 +516,3 @@ Passwords are hashed using **BCrypt** with Spring Security's `BCryptPasswordEnco
 - [Distributed Tracing](/documentation/cross-cutting-concerns/distributed_tracing.md) — OpenTelemetry trace context is propagated across all service calls, including authentication
 - [Global Exception Handling](/documentation/cross-cutting-concerns/global_exception_handling.md) — `InvalidCredentialsException` is mapped to `401` via the global handler in the authentication service
 
----
-
-## Files Reference
-
-| File | Role |
-|------|------|
-| [`authentication-service/.../AuthController.java`](/authentication-service/src/main/java/com/niloy/auth/controller/AuthController.java) | Login endpoint — credential validation + token issuance |
-| [`authentication-service/.../JwtUtil.java`](/authentication-service/src/main/java/com/niloy/auth/util/JwtUtil.java) | JWT token generation (sign + encode claims) |
-| [`authentication-service/.../SecurityConfig.java`](/authentication-service/src/main/java/com/niloy/auth/config/SecurityConfig.java) | BCryptPasswordEncoder bean + open security chain |
-| [`authentication-service/.../User.java`](/authentication-service/src/main/java/com/niloy/auth/model/User.java) | JPA entity — persisted users with hashed passwords and roles |
-| [`authentication-service/.../InvalidCredentialsException.java`](/authentication-service/src/main/java/com/niloy/auth/exception/InvalidCredentialsException.java) | Custom exception mapped to `401` |
-| [`api-gateway/.../JwtAuthenticationFilter.java`](/api-gateway/src/main/java/com/niloy/gateway/filter/JwtAuthenticationFilter.java) | Reactive gateway filter — validates JWT, injects identity headers |
-| [`api-gateway/.../JwtUtil.java`](/api-gateway/src/main/java/com/niloy/gateway/util/JwtUtil.java) | JWT parsing and validation (read-only, no token generation) |
-| [`api-gateway/.../application.yml`](/api-gateway/src/main/resources/application.yml) | Route definitions — `JwtAuthenticationFilter` applied to `/employees/**` and `/leaves/**` |
-| [`authentication-service/.../application.yml`](/authentication-service/src/main/resources/application.yml) | `jwt.secret` and `jwt.expiration-ms` configuration |

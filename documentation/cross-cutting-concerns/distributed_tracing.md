@@ -47,7 +47,7 @@ The tracing functionality is powered by the following libraries configured in ea
 - **Micrometer Tracing Bridge OTel (`micrometer-tracing-bridge-otel`)**: Bridges Spring Boot's Micrometer observation APIs with OpenTelemetry.
 - **OpenTelemetry Exporter OTLP (`opentelemetry-exporter-otlp`)**: Exports tracing data using the standard OpenTelemetry Protocol (OTLP) over HTTP/gRPC.
 
-Java configuration was modified because custom `@Bean` definitions are used for `RabbitTemplate` and `SimpleRabbitListenerContainerFactory` (which bypasses automatic property binding). Observation had to be programmatically enabled by calling `.setObservationEnabled(true)` on these custom beans.
+Java configuration was modified because custom `@Bean` definitions are used for `RabbitTemplate` (in `employee-service`, `leave-management-service`, and `notification-service`) and `SimpleRabbitListenerContainerFactory` (in `notification-service`), which bypasses automatic property binding for those custom beans. Observation had to be programmatically enabled by calling `.setObservationEnabled(true)` on these custom beans.
 
 ---
 
@@ -87,7 +87,7 @@ spring:
 ```
 
 > [!IMPORTANT]
-> Because custom `@Bean` definitions are used for `RabbitTemplate` and `SimpleRabbitListenerContainerFactory` in `RabbitMQConfig.java` across the services, the above `application.yml` properties are not automatically applied to them. Instead, we programmatically enable observation by calling `.setObservationEnabled(true)` on the customized `RabbitTemplate` and `SimpleRabbitListenerContainerFactory` beans.
+> Because custom `@Bean` definitions are used for `RabbitTemplate` (in `employee-service`, `leave-management-service`, and `notification-service`) and `SimpleRabbitListenerContainerFactory` (in `notification-service`), the `application.yml` properties are not automatically applied to them. Instead, we programmatically enable observation by calling `.setObservationEnabled(true)` on these customized `RabbitTemplate` and `SimpleRabbitListenerContainerFactory` beans in their respective Java configurations.
 
 
 ### Environment Overrides (Docker vs. Local)

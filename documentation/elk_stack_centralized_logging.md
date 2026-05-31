@@ -162,7 +162,7 @@ A `logback-spring.xml` file was created in `src/main/resources/` for every servi
     <!-- Structured JSON to stdout (Docker / Filebeat) -->
     <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <customFields>{"service":"${APP_NAME}"}</customFields>
+            <customFields>{"service":"${APP_NAME}","instance":"${HOSTNAME}"}</customFields>
             <fieldNames>
                 <timestamp>@timestamp</timestamp>
                 <message>message</message>
@@ -233,17 +233,37 @@ input {
 filter {
   if [message] =~ /^\{/ {
     json {
-      source => "message"  ← Parses the JSON string emitted by LogstashEncoder
-      target => "log"
+      source => "message"  ← Parses the JSON string from LogstashEncoder
+      target => "app"       ← Parsed object stored temporarily under "app"
     }
-    mutate {
-      add_field => { "service" => "%{[log][service]}" }  ← Promotes "service" to top level
-    }
-  }
 
-  date {
-    match => ["[log][@timestamp]", "ISO8601"]  ← Syncs Elasticsearch @timestamp
-    target => "@timestamp"
+    # Truncate nanosecond precision to milliseconds (Joda-Time compatibility)
+    if [app][@timestamp] {
+      mutate {
+        gsub => [ "[app][@timestamp]", '(\.\d{3})\d+', '\1' ]
+      }
+      date {
+        match => ["[app][@timestamp]", "ISO8601"]  ← Sync Elasticsearch @timestamp
+        target => "@timestamp"
+      }
+      mutate {
+        remove_field => ["[app][@timestamp]"]
+      }
+    }
+
+    # Hoist all parsed fields (level, message, service, instance, logger…) to root
+    ruby {
+      code => "
+        app = event.get('app')
+        if app.is_a?(Hash)
+          app.each { |k, v| event.set(k, v) }
+        end
+      "
+    }
+
+    mutate {
+      remove_field => ["app"]  ← Clean up the temporary object
+    }
   }
 }
 
@@ -258,7 +278,8 @@ output {
 
 **Key design choices:**
 - **Daily index rotation** (`leave-portal-logs-YYYY.MM.dd`) keeps indices manageable and allows date-range filtering in Kibana.
-- The `service` field is promoted to the top level so it becomes a first-class Kibana filter field.
+- All parsed fields (`level`, `message`, `service`, `instance`, `logger`, `thread`) are hoisted to the Elasticsearch document root via a Ruby block, making them first-class Kibana filter fields.
+- A `gsub` mutate truncates nanosecond timestamps to milliseconds before the `date` filter, ensuring compatibility with Logstash's Joda-Time parser.
 - `stdout { codec => rubydebug }` lets you verify events are flowing correctly by watching `docker logs logstash`.
 
 ---
@@ -275,7 +296,7 @@ filebeat.autodiscover:
       templates:
         - condition:
             contains:
-              docker.container.labels.com.docker.compose.project: nagp2026
+              docker.container.image: "dreamspace04/"
           config:
             - type: container
               paths:
@@ -294,8 +315,8 @@ logging.level: info
 ```
 
 **Key design choices:**
-- **Docker autodiscover** automatically detects new containers without restarting Filebeat. Any new container in the `nagp2026` compose project is picked up automatically.
-- The condition `com.docker.compose.project: nagp2026` scopes collection to only this project's containers — avoids collecting noise from unrelated containers running on the same host.
+- **Docker autodiscover** automatically detects new containers without restarting Filebeat.
+- The condition `docker.container.image: "dreamspace04/"` scopes collection to only this project's service containers (all images are published under the `dreamspace04/` Docker Hub namespace) — avoids collecting noise from unrelated containers such as RabbitMQ, Jaeger, or Postgres.
 - `add_docker_metadata` enriches every event with `container.id`, `container.name`, and `image.name`.
 
 ---
@@ -324,6 +345,9 @@ elasticsearch:
 
 logstash:
   image: docker.elastic.co/logstash/logstash:8.13.0
+  ports:
+    - "5044:5044"   # Beats input
+    - "9600:9600"   # Logstash monitoring API
   volumes:
     - ./elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
   depends_on:
@@ -343,6 +367,9 @@ kibana:
 filebeat:
   image: docker.elastic.co/beats/filebeat:8.13.0
   user: root           # Required to read Docker socket
+  # --strict.perms=false is required on Windows hosts — Docker mounts
+  # Windows filesystem files with 777 permissions, which Filebeat rejects.
+  command: ["filebeat", "-e", "--strict.perms=false"]
   volumes:
     - ./elk/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
     - /var/lib/docker/containers:/var/lib/docker/containers:ro
@@ -401,6 +428,7 @@ When running in Docker, every log event emitted by a service looks like this:
   "logger": "com.niloy.leave.controller.LeaveController",
   "thread": "reactor-http-nio-3",
   "service": "leave-management-service",
+  "instance": "a3f89c7d8e2f",
   "host": {
     "name": "docker-host"
   },
@@ -410,6 +438,8 @@ When running in Docker, every log event emitted by a service looks like this:
   }
 }
 ```
+
+> **Note on `instance` field**: The `instance` field is populated from `${HOSTNAME}` (the container ID prefix), allowing you to distinguish log events from different replicas of the same scaled service (e.g., `authentication-service` runs 2 replicas by default).
 
 The `service` field makes it trivial to filter by a specific microservice in Kibana.
 
