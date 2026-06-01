@@ -511,17 +511,6 @@ See the full document: [authentication_and_authorization.md](cross-cutting-conce
 | Gateway-level AuthZ | `api-gateway` | `JwtAuthenticationFilter` → validates JWT, injects headers |
 | Service-level AuthZ | `employee-service`, `leave-management-service` | Read `X-User-Role` header, enforce RBAC |
 
-**Role permissions summary:**
-
-| Action | EMPLOYEE | MANAGER |
-|--------|:--------:|:-------:|
-| Login | ✅ | ✅ |
-| View own employee record | ✅ | ✅ |
-| View any employee record | ❌ | ✅ |
-| Create employee | ❌ | ✅ |
-| Apply for leave | ✅ | ❌ |
-| Approve/Reject leave | ❌ | ✅ |
-| Cancel leave | ✅ | ❌ |
 
 ---
 
@@ -557,47 +546,17 @@ See the full document: [logging.md](cross-cutting-concerns/logging.md) · [elk_s
 - **Pipeline:** Service → JSON log file → Filebeat → Logstash → Elasticsearch → Kibana
 - **Kibana:** http://localhost:5601
 
-Log level configuration across all services:
-
-```yaml
-logging:
-  level:
-    root: INFO
-    com.niloy: DEBUG       # full debug for all project code
-    org.springframework: WARN
-    org.hibernate: WARN
-```
-
 ---
 
 ### 7.5 Global Exception Handling
 
 See the full document: [global_exception_handling.md](cross-cutting-concerns/global_exception_handling.md)
 
-All services use `@RestControllerAdvice` to produce consistent error response shapes:
-
-```json
-{
-  "status": 401,
-  "error": "Unauthorized",
-  "message": "Invalid username or password",
-  "timestamp": "2026-05-30T10:22:01"
-}
-```
-
 ---
 
 ### 7.6 Health & Actuator Endpoints
 
 See the full document: [health_checks.md](health_checks.md)
-
-All services expose Spring Boot Actuator endpoints:
-
-| Endpoint | Path |
-|----------|------|
-| Health | `/actuator/health` |
-| Info | `/actuator/info` |
-| Circuit Breakers | `/actuator/circuitbreakers` (gateway only) |
 
 ---
 
@@ -718,34 +677,5 @@ docker-compose up --scale authentication-service=3
 
 ## 10. API Endpoints Reference
 
-### Authentication Service (`/auth`)
-
-| Method | Path | Auth | Role | Description |
-|--------|------|:----:|------|-------------|
-| `POST` | `/auth/login` | ❌ | Any | Validate credentials, return JWT |
-
-### Employee Service (`/employees`)
-
-| Method | Path | Auth | Role | Description |
-|--------|------|:----:|------|-------------|
-| `POST` | `/employees` | ✅ | MANAGER | Create new employee profile |
-| `GET` | `/employees/{id}` | ✅ | Any\* | Get employee by ID |
-| `GET` | `/employees` | ✅ | MANAGER | List all employees |
-
-> \*`EMPLOYEE` role can only retrieve their own record (`id` must match `X-User-Id`)
-
-### Leave Management Service (`/leaves`)
-
-| Method | Path | Auth | Role | Description |
-|--------|------|:----:|------|-------------|
-| `POST` | `/leaves/apply` | ✅ | EMPLOYEE | Submit a new leave request |
-| `GET` | `/leaves/{id}` | ✅ | Any | Get leave request by ID |
-| `GET` | `/leaves/my` | ✅ | EMPLOYEE | Get own leave requests |
-| `GET` | `/leaves/pending` | ✅ | MANAGER | List all pending requests |
-| `PATCH` | `/leaves/{id}/approve` | ✅ | MANAGER | Approve a leave request |
-| `PATCH` | `/leaves/{id}/reject` | ✅ | MANAGER | Reject a leave request |
-| `DELETE` | `/leaves/{id}/cancel` | ✅ | EMPLOYEE | Cancel a pending request |
-| `GET` | `/leaves/balance` | ✅ | EMPLOYEE | Get own leave balances |
-
----
+For the detailed specifications of all REST API endpoints, query parameters, request headers, and response payloads, please refer to the dedicated [API Endpoints Reference](api_endpoints.md) document.
 
