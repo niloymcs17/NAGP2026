@@ -8,14 +8,25 @@ The collection is located in your workspace root:
 ---
 
 ## 1. Prerequisites
-Before running the APIs, ensure your backend microservices are running. 
+Before running the APIs, ensure your backend microservices are running. You can launch the system in one of two ways:
 
-If running locally:
+### Option A: Running via Docker Compose (Recommended)
+This starts all backend microservices, RabbitMQ, PostgreSQL databases, Jaeger tracing, and the ELK logging stack automatically.
+1. Run the following command from the workspace root:
+   ```bash
+   docker-compose up --build -d
+   ```
+2. Verify all containers are up and healthy:
+   ```bash
+   docker-compose ps
+   ```
+
+### Option B: Running Locally (Bare Metal)
 1. Start your local RabbitMQ instance.
 2. Start the **Eureka Server** first (port `8761`).
 3. Start the remaining services (`authentication-service`, `employee-service`, `leave-management-service`, `notification-service`, and `api-gateway`).
 
-All requests in the collection route through the **API Gateway** running at `http://localhost:8080`.
+Regardless of the launch option, all requests in the collection route through the **API Gateway** running at `http://localhost:8080`.
 
 ---
 

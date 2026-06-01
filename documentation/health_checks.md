@@ -60,6 +60,11 @@ graph TD
 
 ## 2. Health Check Endpoints
 
+Accessing health check endpoints depends on whether you are running the system **locally ** or via **Docker Compose**.
+
+### A. Running Locally 
+When running services individually on your host machine, you can query their Actuator endpoints directly:
+
 | Service | Active Port | Health Check URL |
 | :--- | :--- | :--- |
 | **API Gateway** | `8080` | `GET http://localhost:8080/actuator/health` |
@@ -70,6 +75,29 @@ graph TD
 | **Eureka Server** | `8761` | `GET http://localhost:8761/actuator/health` |
 
 ---
+
+### B. Running via Docker Compose (Multiple Replicas)
+When using Docker Compose, the load-balanced services (`authentication-service`, `employee-service`, and `leave-management-service`) run with **multiple replicas** (`replicas: 2`). To avoid port collisions on the host machine, **their ports (8081, 8082, 8083) are not exposed directly to localhost**.
+
+Only `api-gateway` (`8080`), `eureka-server` (`8761`), and `notification-service` (`8084`) have host ports exposed.
+
+To inspect the health check of a specific replica container (such as one of the **Leave Management Service** instances):
+
+#### Method 1: Using Docker Exec (Command Line)
+1. List the running containers to find the replica container names:
+   ```bash
+   docker-compose ps
+   ```
+   *(Typical names: `nagp2026-leave-management-service-1`, `nagp2026-leave-management-service-2`)*
+2. Execute a request inside the selected container:
+   ```bash
+   docker exec -it <container_name> curl http://localhost:8083/actuator/health
+   ```
+
+#### Method 2: Via Eureka Server Dashboard
+1. Open the Eureka Server Dashboard at `http://localhost:8761`.
+2. Locate the **LEAVE-MANAGEMENT-SERVICE** section.
+3. You will see both active replicas registered. Click on the status link of a replica to query its endpoint (navigated via Eureka service routing).
 
 ## 3. Configuration & Implementation
 

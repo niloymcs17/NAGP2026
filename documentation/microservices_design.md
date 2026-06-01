@@ -283,6 +283,12 @@ sequenceDiagram
 | 2 | employee2 | Employee Two | EMPLOYEE | 3 |
 | 3 | manager1 | Manager One | MANAGER | — |
 
+> [!NOTE]
+> **Reporting Hierarchy & Manager Leave Approvals:**
+> * **Root Node (`manager1`)**: In this minimal seed dataset, `manager1` represents the root of the hierarchy and reports to no one, which is why their `Manager ID` is empty (`null` in the database).
+> * **Database Constraints**: The `managerId` field in the leave requests database is non-nullable (`NOT NULL`). Therefore, if a manager applies for leave, they must still provide a valid numeric value for `managerId` in the request body.
+> * **Self-Approval vs. Hierarchy**: The `leave-management-service` verifies that the approver has the `MANAGER` role and that their ID matches the request's `managerId`. Because there is no check preventing the requester and approver from being the same person, a manager can self-approve their request by setting the `managerId` to their own ID. In production, this field would instead point to a higher-ranking manager (e.g., a Director).
+
 ---
 
 ### 4.5 Leave Management Service (`leave-management-service`)
@@ -733,17 +739,3 @@ docker-compose up --scale authentication-service=3
 
 ---
 
-## Related Documentation
-
-| Document | Description |
-|----------|-------------|
-| [authentication_and_authorization.md](cross-cutting-concerns/authentication_and_authorization.md) | Full JWT auth/authz implementation details |
-| [circuit_breaker_pattern.md](cross-cutting-concerns/circuit_breaker_pattern.md) | Resilience4j configuration and state machine |
-| [logging.md](cross-cutting-concerns/logging.md) | SLF4J logging patterns and configuration |
-| [distributed_tracing.md](cross-cutting-concerns/distributed_tracing.md) | OpenTelemetry + Jaeger integration |
-| [global_exception_handling.md](cross-cutting-concerns/global_exception_handling.md) | Unified error response structure |
-| [inter_service_communication.md](inter_service_communication.md) | RabbitMQ exchange/queue topology detail |
-| [database_persistence_and_consistency.md](database_persistence_and_consistency.md) | Optimistic locking and database isolation |
-| [elk_stack_centralized_logging.md](elk_stack_centralized_logging.md) | ELK stack setup and Kibana dashboards |
-| [health_checks.md](health_checks.md) | Actuator endpoints and health checks |
-| [POSTMAN_DOCUMENTATION.md](/POSTMAN_DOCUMENTATION.md) | Postman collection usage guide |

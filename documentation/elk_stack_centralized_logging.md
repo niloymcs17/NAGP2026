@@ -4,20 +4,6 @@ This document explains how **centralized log aggregation** is configured and imp
 
 ---
 
-## Why Centralized Logging?
-
-Before this implementation, each microservice printed logs independently to its own console/container stdout. This approach had critical limitations:
-
-| Problem | Impact |
-|---|---|
-| Logs scattered across 6 containers | No way to correlate an error across services |
-| No searchability | Debugging required `docker logs` on each container individually |
-| No log retention | Container restart = all logs lost |
-| No filtering or alerting | Impossible to watch for `ERROR` across all services in real time |
-
-The ELK Stack solves all of this by providing a single, searchable, indexed, and visualizable log store for all services.
-
----
 
 ## Architecture
 
@@ -57,19 +43,19 @@ The ELK Stack solves all of this by providing a single, searchable, indexed, and
 ```mermaid
 flowchart LR
     subgraph Services ["Microservices (all 6)"]
-        GW["api-gateway\n:8080"]
-        AS["authentication-service\n:8081"]
-        ES["employee-service\n:8082"]
-        LS["leave-management-service\n:8083"]
-        NS["notification-service\n:8084"]
-        EU["eureka-server\n:8761"]
+        GW["api-gateway"]
+        AS["authentication-service"]
+        ES["employee-service"]
+        LS["leave-management-service"]
+        NS["notification-service"]
+        EU["eureka-server"]
     end
 
     subgraph ELK ["ELK Stack"]
-        FB["Filebeat\n(log shipper)"]
-        LST["Logstash\n:5044 / :9600"]
-        ESE["Elasticsearch\n:9200"]
-        KB["Kibana\n:5601"]
+        FB["Filebeat"]
+        LST["Logstash"]
+        ESE["Elasticsearch"]
+        KB["Kibana"]
     end
 
     Services -->|"stdout JSON\n(docker profile)"| FB
@@ -85,14 +71,14 @@ flowchart LR
 
 ## Services In Scope
 
-| Service | Port | Emits JSON Logs |
+| Service | Emits JSON Logs |
 |---|---|---|
-| `api-gateway` | 8080 | ✅ Yes |
-| `authentication-service` | 8081 | ✅ Yes |
-| `employee-service` | 8082 | ✅ Yes |
-| `leave-management-service` | 8083 | ✅ Yes |
-| `notification-service` | 8084 | ✅ Yes |
-| `eureka-server` | 8761 | ✅ Yes |
+| `api-gateway` |  ✅ Yes |
+| `authentication-service` |  ✅ Yes |
+| `employee-service` |  ✅ Yes |
+| `leave-management-service` |  ✅ Yes |
+| `notification-service` |  ✅ Yes |
+| `eureka-server` |  ✅ Yes |
 
 ---
 
@@ -214,8 +200,6 @@ logging:
     org.springframework: WARN
     org.hibernate: WARN
 ```
-
-**File modified:** [eureka-server/application.yml](/eureka-server/src/main/resources/application.yml) — also had `spring.application.name: eureka-server` added (required by `logback-spring.xml`'s `<springProperty>`).
 
 ---
 
@@ -628,9 +612,3 @@ docker logs elasticsearch --tail 50
 Common cause: insufficient Docker memory. Increase Docker Desktop memory allocation to at least **4 GB**.
 
 ---
-
-## Related Documentation
-
-- [Logging — SLF4J/Logback Implementation](/documentation/cross-cutting-concerns/logging.md) — How structured log statements are written in Java code using `@Slf4j`
-- [Distributed Tracing — Jaeger](/documentation/cross-cutting-concerns/distributed_tracing.md) — How `traceId` correlates requests across services (combine with Kibana for full observability)
-- [Circuit Breaker Pattern](/documentation/cross-cutting-concerns/circuit_breaker_pattern.md) — Circuit breaker state transitions are logged at `WARN` level and searchable in Kibana

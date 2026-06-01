@@ -49,7 +49,7 @@ graph TD
 ## 2. Configuration & Dependencies
 
 ### Maven Configuration
-The in-memory `h2` database dependency was removed, and the `postgresql` driver was configured in each service's `pom.xml`:
+The  `postgresql` driver was configured in each service's `pom.xml`:
 ```xml
 <dependency>
     <groupId>org.postgresql</groupId>

@@ -1,4 +1,4 @@
-# Logging – Implementation in Employee Leave Portal
+# Logging 
 
 This document explains how structured logging is implemented across all microservices in this project.
 
@@ -7,11 +7,6 @@ This document explains how structured logging is implemented across all microser
 ## Overview
 
 All services previously used `System.out.println` for diagnostic output, which has no log levels, no timestamps, and cannot be filtered or integrated with log aggregation tools. These have been replaced with **SLF4J + Logback** — the standard Java logging stack.
-
-No new Maven dependencies were required:
-- **SLF4J** (`slf4j-api`) is already on the classpath via `spring-boot-starter`
-- **Logback** is Spring Boot's default logging implementation — bundled automatically
-- **`@Slf4j`** is a Lombok annotation — Lombok is already in the parent `pom.xml`
 
 ---
 
@@ -64,13 +59,6 @@ This means:
 - All project code (`com.niloy.*`) logs at DEBUG and above
 - Spring and Hibernate framework internals are suppressed to WARN, keeping the console clean
 - The global root level is INFO
-
-**Files modified:**
-- `api-gateway/src/main/resources/application.yml`
-- `authentication-service/src/main/resources/application.yml`
-- `employee-service/src/main/resources/application.yml`
-- `leave-management-service/src/main/resources/application.yml`
-- `notification-service/src/main/resources/application.yml`
 
 ---
 
@@ -182,30 +170,6 @@ This means:
 
 ---
 
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `api-gateway/.../JwtAuthenticationFilter.java` | `@Slf4j` + 3 log statements |
-| `api-gateway/.../FallbackController.java` | `@Slf4j` + 3 `log.warn` (one per fallback) |
-| `authentication-service/.../AuthController.java` | `@Slf4j` + 3 login flow logs |
-| `authentication-service/.../AuthenticationServiceApplication.java` | `@Slf4j` + `println` → `log.info` |
-| `employee-service/.../EmployeeController.java` | `@Slf4j` + `println` → `log.info` + 5 warn/debug statements |
-| `employee-service/.../EmployeeServiceApplication.java` | `@Slf4j` + `println` → `log.info`, `System.err` → `log.error` |
-| `leave-management-service/.../LeaveController.java` | `@Slf4j` + 10 log statements at all business events |
-| `leave-management-service/.../EmployeeCreatedConsumer.java` | `@Slf4j` + 3 `println` → structured logs |
-| `leave-management-service/.../LeaveManagementServiceApplication.java` | `@Slf4j` + `println` → `log.info` |
-| `notification-service/.../LeaveNotificationConsumer.java` | `@Slf4j` + 15 `println` → 1 structured `log.info` |
-| `api-gateway/src/main/resources/application.yml` | `logging:` config block added |
-| `authentication-service/src/main/resources/application.yml` | `logging:` config block added |
-| `employee-service/src/main/resources/application.yml` | `logging:` config block added |
-| `leave-management-service/src/main/resources/application.yml` | `logging:` config block added |
-| `notification-service/src/main/resources/application.yml` | `logging:` config block added |
-
-**Total: 10 Java files + 5 YAML files = 15 file changes.**
-
----
-
 ## Sample Log Output
 
 Below is what typical log output looks like after this implementation, when an employee applies for leave:
@@ -256,15 +220,3 @@ When running the application stack via [docker-compose.yml](/docker-compose.yml)
   ```bash
   docker-compose logs -f employee-service | grep "com.niloy"
   ```
-
-### 3. Persisting Logs to a File
-By default, logs are only output to the console. To write logs to a file, configure the `logging.file.name` property in the service's `application.yml`:
-```yaml
-logging:
-  file:
-    name: logs/leave-management-service.log
-```
-This will automatically generate a rolling log file under a `logs/` directory relative to the directory from which the application is run.
-
-### 4. Distributed Tracing Correlation
-Since OpenTelemetry and Jaeger are integrated in this workspace (see [distributed-tracing.md](/documentation/cross-cutting-concerns/distributed_tracing.md)), every log statement is automatically decorated with the current `traceId` and `spanId` when a distributed tracing context is active. This allows you to track a request flow across all microservices.
