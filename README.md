@@ -91,57 +91,6 @@ An exportable Postman collection is included directly in the root directory:
 * [Leave_Portal.postman_collection.json](Leave_Portal.postman_collection.json)
 
 For detailed documentation of requests, refer to [POSTMAN DOCUMENTATION](documentation/POSTMAN_DOCUMENTATION.md).
-
-### Seeded Mock Users:
-The databases automatically seed the following accounts for testing on initial startup:
-* `employee1` (Password: `password`, Role: `EMPLOYEE`)
-* `employee2` (Password: `password`, Role: `EMPLOYEE`)
-* `manager1` (Password: `password`, Role: `MANAGER`)
-
-### Standard Testing Flow:
-
-#### 1. Authenticate (Get JWT Token)
-Send a login request to the gateway to receive your authorization token:
-* **Request**: `POST http://localhost:8080/auth/login`
-* **Body**:
-  ```json
-  {
-    "username": "employee1",
-    "password": "password"
-  }
-  ```
-* **Response**: Save the returned JWT token value.
-
-#### 2. Configure Authorization in Postman
-For all subsequent requests, pass the JWT token inside the request header:
-* **Header**: `Authorization: Bearer <your_jwt_token>`
-
-#### 3. View Leave Balances
-* **Request**: `GET http://localhost:8080/leaves/balances`
-* **Headers**: `Authorization: Bearer <token>`
-* **Description**: Returns Casual, Sick, and Privilege leave allocations.
-
-#### 4. Apply for Leave
-* **Request**: `POST http://localhost:8080/leaves/apply`
-* **Headers**: `Authorization: Bearer <token>`
-* **Body**:
-  ```json
-  {
-    "leaveType": "CASUAL",
-    "startDate": "2026-06-15",
-    "endDate": "2026-06-19",
-    "reason": "Family vacation",
-    "managerId": 3
-  }
-  ```
-* **Description**: Submits a pending request. If valid, the leave days are immediately deducted from the balance.
-
-#### 5. Approve or Reject Leave (Requires Manager Authorization)
-Login as `manager1` to get a Manager JWT token, then approve or reject the request:
-* **Request**: `POST http://localhost:8080/leaves/{leaveRequestId}/approve` (or `/reject`)
-* **Headers**: `Authorization: Bearer <manager_token>`
-* **Description**: Sets status to `APPROVED` or `REJECTED`.
-
 ---
 
 ## 6. Project Documentation
