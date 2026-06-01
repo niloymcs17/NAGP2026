@@ -45,78 +45,88 @@ The **Employee Leave Management Portal** is a demonstration-grade microservices 
 ### 2.1 Full System Architecture
 
 ```mermaid
-flowchart TD
-    Client["🖥️ Client\n(Browser / Postman)"]
+flowchart LR
+ subgraph ObsLayer["<span style='font-size: 24px; font-weight: bold;'>🔍 Observability & Tracing</span>"]
+        Jaeger["<img src='https://raw.githubusercontent.com/cncf/artwork/main/projects/jaeger/icon/color/jaeger-icon-color.svg' style='width:80px; height:80px;' /><br>Jaeger UI<br>Distributed Tracing<br>:16686"]
+        Kibana["<img src='https://raw.githubusercontent.com/devicons/devicon/master/icons/kibana/kibana-original.svg' style='width:80px; height:80px;' /><br>Kibana<br>Log Visualization<br>:5601"]
+  end
+ subgraph GatewayLayer["<span style='font-size: 24px; font-weight: bold;'>🚪 Entry & Discovery Layer</span>"]
+        Gateway["<img src='https://raw.githubusercontent.com/devicons/devicon/master/icons/spring/spring-original.svg' style='width:80px; height:80px;' /><br>API Gateway<br>Spring Cloud Gateway<br>:8080"]
+        Eureka["<img src='https://miro.medium.com/v2/resize:fit:640/format:webp/1*eHBmngvJz7eumU5jxzso1w.png' style='width:80px; height:80px;' /><br>Eureka Server<br>Service Registry<br>:8761"]
+  end
+ subgraph ServicesLayer["<span style='font-size: 24px; font-weight: bold;'>⚙️ Core Microservices</span>"]
+        AuthService["<img src='https://raw.githubusercontent.com/devicons/devicon/master/icons/spring/spring-original.svg' style='width:80px; height:80px;' /><br>Authentication Service<br><small>(2× replicas)</small>"]
+        EmpService["<img src='https://raw.githubusercontent.com/devicons/devicon/master/icons/spring/spring-original.svg' style='width:80px; height:80px;' /><br>Employee Service<br><small>(2× replicas)</small>"]
+        LeaveService["<img src='https://raw.githubusercontent.com/devicons/devicon/master/icons/spring/spring-original.svg' style='width:80px; height:80px;' /><br>Leave Management Service<br><small>(2× replicas)</small>"]
+        NotifService["<img src='https://raw.githubusercontent.com/devicons/devicon/master/icons/spring/spring-original.svg' style='width:80px; height:80px;' /><br>Notification Service"]
+  end
+ subgraph DataLayer["<span style='font-size: 24px; font-weight: bold;'>💾 Persistence Layer (PostgreSQL)</span>"]
+        AuthDB[("<img src='https://raw.githubusercontent.com/devicons/devicon/master/icons/postgresql/postgresql-original.svg' style='width:60px; height:60px;' /><br>authdb<br>Users Table")]
+        EmpDB[("<img src='https://raw.githubusercontent.com/devicons/devicon/master/icons/postgresql/postgresql-original.svg' style='width:60px; height:60px;' /><br>employeedb<br>Employees Table")]
+        LeaveDB[("<img src='https://raw.githubusercontent.com/devicons/devicon/master/icons/postgresql/postgresql-original.svg' style='width:60px; height:60px;' /><br>leavedb<br>Requests &amp; Balances")]
+  end
+ subgraph MsgLayer["<span style='font-size: 24px; font-weight: bold;'>✉️ Messaging Layer</span>"]
+        RabbitMQ[["<img src='https://raw.githubusercontent.com/devicons/devicon/master/icons/rabbitmq/rabbitmq-original.svg' style='width:80px; height:80px;' /><br>RabbitMQ<br>:5672 | UI: :15672"]]
+  end
+ subgraph ELKLayer["<span style='font-size: 24px; font-weight: bold;'>📊 Log Aggregation (ELK Stack)</span>"]
+        Filebeat["<img src='https://projects.task.gda.pl/uploads/-/system/project/avatar/476/Beats_Large.png' style='width:60px; ' /><br>Filebeat<br>Log Shipper"]
+        Logstash["<img src='https://www.bujarra.com/wp-content/uploads/2018/11/logstash.jpg' style='width:60px; ' /><br>Logstash<br>Pipeline Receiver<br>:5044"]
+        ES["<img src='https://raw.githubusercontent.com/devicons/devicon/master/icons/elasticsearch/elasticsearch-original.svg' style='width:80px; height:80px;' /><br>Elasticsearch<br>Log Store<br>:9200"]
+  end
+    Client["<img src='https://raw.githubusercontent.com/devicons/devicon/master/icons/chrome/chrome-original.svg' style='width:80px; height:80px;' /><br>Client / Browser<br>(Chrome / Postman)"] -->|"<span style='font-size: 35px;'>HTTP Requests</span>"| Gateway
+    Gateway -->|"<span style='font-size: 35px;'>/auth/** (no JWT)</span>"| AuthService
+    Gateway -->|"<span style='font-size: 35px;'>/employees/** (JWT validation)</span>"| EmpService
+    Gateway -->|"<span style='font-size: 35px;'>/leaves/** (JWT validation)</span>"| LeaveService
 
-    subgraph ObsLayer ["Observability Infrastructure"]
-        Jaeger["Jaeger UI\n:16686"]
-        Kibana["Kibana\n:5601"]
-    end
+    Gateway -.-|"<span style='font-size: 35px;'>discovers</span>"| Eureka
+    AuthService -.-|"<span style='font-size: 35px;'>registers</span>"| Eureka
+    EmpService -.-|"<span style='font-size: 35px;'>registers</span>"| Eureka
+    LeaveService -.-|"<span style='font-size: 35px;'>registers</span>"| Eureka
+    NotifService -.-|"<span style='font-size: 35px;'>registers</span>"| Eureka
 
-    subgraph GatewayLayer ["Entry & Discovery Layer"]
-        Gateway["🚪 API Gateway\nSpring Cloud Gateway\n:8080"]
-        Eureka["📋 Eureka Server\nService Registry\n:8761"]
-    end
-
-    subgraph ServicesLayer ["Core Microservices"]
-        AuthService["🔐 Authentication Service\n:8081 (×2 replicas)"]
-        EmpService["👤 Employee Service\n:8082 (×2 replicas)"]
-        LeaveService["📅 Leave Management Service\n:8083 (×2 replicas)"]
-        NotifService["🔔 Notification Service\n:8084"]
-    end
-
-    subgraph DataLayer ["Persistence Layer (PostgreSQL)"]
-        AuthDB[("authdb\nusers")]
-        EmpDB[("employeedb\nemployees")]
-        LeaveDB[("leavedb\nleave_requests\nleave_balances")]
-    end
-
-    subgraph MsgLayer ["Messaging Layer"]
-        RabbitMQ[["RabbitMQ\n:5672 | UI :15672"]]
-    end
-
-    subgraph ELKLayer ["Log Aggregation (ELK)"]
-        Filebeat["Filebeat\n(log shipper)"]
-        Logstash["Logstash\n:5044"]
-        ES["Elasticsearch\n:9200"]
-    end
-
-    %% Client entry
-    Client -->|"HTTP Requests"| Gateway
-
-    %% Gateway routes
-    Gateway -->|"/auth/**\n(no JWT)"| AuthService
-    Gateway -->|"/employees/**\n+ X-User-* headers"| EmpService
-    Gateway -->|"/leaves/**\n+ X-User-* headers"| LeaveService
-
-    %% Eureka registrations
-    Gateway -.-|"discovers"| Eureka
-    AuthService -.-|"registers"| Eureka
-    EmpService -.-|"registers"| Eureka
-    LeaveService -.-|"registers"| Eureka
-    NotifService -.-|"registers"| Eureka
-
-    %% Database connections
     AuthService --- AuthDB
     EmpService --- EmpDB
     LeaveService --- LeaveDB
 
-    %% Event messaging
-    EmpService -->|"employee.created"| RabbitMQ
-    LeaveService -->|"leave.notification"| RabbitMQ
-    RabbitMQ -->|"employee.created"| LeaveService
-    RabbitMQ -->|"leave.notification"| NotifService
+    EmpService -->|"<span style='font-size: 35px;'>Publish: employee.created</span>"| RabbitMQ
+    LeaveService -->|"<span style='font-size: 35px;'>Publish: leave.notification</span>"| RabbitMQ
+    RabbitMQ -->|"<span style='font-size: 35px;'>Consume: employee.created</span>"| LeaveService
+    RabbitMQ -->|"<span style='font-size: 35px;'>Consume: leave.notification</span>"| NotifService
 
-    %% Observability
-    Gateway -.->|"OTLP traces"| Jaeger
-    AuthService -.->|"OTLP traces"| Jaeger
-    EmpService -.->|"OTLP traces"| Jaeger
-    LeaveService -.->|"OTLP traces"| Jaeger
-    NotifService -.->|"OTLP traces"| Jaeger
+    Gateway -.->|"<span style='font-size: 35px;'>OTLP trace context</span>"| Jaeger
+    AuthService -.->|"<span style='font-size: 35px;'>OTLP trace context</span>"| Jaeger
+    EmpService -.->|"<span style='font-size: 35px;'>OTLP trace context</span>"| Jaeger
+    LeaveService -.->|"<span style='font-size: 35px;'>OTLP trace context</span>"| Jaeger
+    NotifService -.->|"<span style='font-size: 35px;'>OTLP trace context</span>"| Jaeger
 
-    Filebeat -->|"JSON logs"| Logstash
-    Logstash --> ES
-    ES --> Kibana
+    Filebeat -->|"<span style='font-size: 35px;'>Shipped Logs</span>"| Logstash
+    Logstash -->|"<span style='font-size: 35px;'>Indexed Logs</span>"| ES
+    ES -->|"<span style='font-size: 35px;'>Search & Query</span>"| Kibana
+
+     Client:::client
+     Jaeger:::obs
+     Kibana:::obs
+     Gateway:::gateway
+     Eureka:::gateway
+     AuthService:::services
+     EmpService:::services
+     LeaveService:::services
+     NotifService:::services
+     AuthDB:::data
+     EmpDB:::data
+     LeaveDB:::data
+     RabbitMQ:::messaging
+     Filebeat:::elk
+     Logstash:::elk
+     ES:::elk
+    classDef client fill:#f5f5f7,stroke:#1d1d1f,stroke-width:2px,color:#1d1d1f,font-size:30px
+    classDef obs fill:#f3e8ff,stroke:#7e22ce,stroke-width:2px,color:#581c87,font-size:30px
+    classDef gateway fill:#ecfdf5,stroke:#047857,stroke-width:2px,color:#065f46,font-size:30px
+    classDef services fill:#eff6ff,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a,font-size:30px
+    classDef data fill:#fff7ed,stroke:#c2410c,stroke-width:2px,color:#7c2d12,font-size:30px
+    classDef messaging fill:#fff1f2,stroke:#be123c,stroke-width:2px,color:#881337,font-size:30px
+    classDef elk fill:#f0fdfa,stroke:#0f766e,stroke-width:2px,color:#115e59,font-size:30px
+
 ```
 
 ### 2.2 Request Flow — Authentication
