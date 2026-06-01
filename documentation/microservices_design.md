@@ -415,83 +415,14 @@ All JPA entities carry a `@Version` (`INTEGER`) column. Spring Data JPA uses thi
 
 ## 6. Inter-Service Communication
 
-### 6.1 Communication Patterns
+The system implements a hybrid communication architecture consisting of synchronous requests and asynchronous events:
 
-| Pattern | Used For | Technology |
-|---------|----------|-----------|
-| **Synchronous HTTP** | Client-facing API calls | Spring Cloud Gateway (load-balanced `lb://` URIs) |
-| **Asynchronous Messaging** | Cross-service side effects | RabbitMQ Topic Exchange |
+1. **Synchronous HTTP**: Used for client-facing API requests, routed and load-balanced via Spring Cloud Gateway.
+2. **Asynchronous Messaging**: Used for decoupling cross-service operations and side effects, implemented via RabbitMQ Topic Exchanges.
 
-### 6.2 RabbitMQ Event Topology
+For the complete details of the communication patterns, RabbitMQ topology, message payloads, and schema details, see the dedicated writeup in [inter_service_communication.md](inter_service_communication.md).
 
-```mermaid
-flowchart LR
-    subgraph Publishers
-        EmpSvc["Employee Service"]
-        LeaveSvc["Leave Management Service"]
-    end
-
-    subgraph Exchanges
-        EmpExch["employee.exchange\n(Topic)"]
-        LeaveExch["leave.exchange\n(Topic)"]
-    end
-
-    subgraph Queues
-        EmpQueue["employee.created.queue"]
-        LeaveQueue["leave.notification.queue"]
-    end
-
-    subgraph Consumers
-        LeaveSvcConsumer["Leave Management Service\n(EmployeeCreatedConsumer)"]
-        NotifSvc["Notification Service\n(LeaveNotificationConsumer)"]
-    end
-
-    EmpSvc -->|"routingKey:\nemployee.created"| EmpExch
-    EmpExch -->|"binding"| EmpQueue
-    EmpQueue --> LeaveSvcConsumer
-
-    LeaveSvc -->|"routingKey:\nleave.notification"| LeaveExch
-    LeaveExch -->|"binding"| LeaveQueue
-    LeaveQueue --> NotifSvc
-```
-
-### 6.3 Event Contracts
-
-**`employee.created` event:**
-```json
-{
-  "employeeId": 4,
-  "username": "employee3",
-  "fullName": "Employee Three",
-  "email": "employee3@company.com",
-  "managerId": 3
-}
-```
-**Consumer action:** Leave Management Service initializes `CASUAL=12`, `SICK=10`, `PRIVILEGE=15` balance rows for the new employee.
-
----
-
-**`leave.notification` event:**
-```json
-{
-  "eventType": "APPLICATION",
-  "employeeId": 1,
-  "employeeName": "employee1",
-  "managerId": 3,
-  "leaveId": 1,
-  "leaveType": "CASUAL",
-  "startDate": "2026-06-01",
-  "endDate": "2026-06-03",
-  "numberOfDays": 3,
-  "status": "PENDING",
-  "comments": "Applied successfully: Personal trip"
-}
-```
-
-**`eventType` values:** `APPLICATION`, `APPROVED`, `REJECTED`, `CANCELLED`  
-**Consumer action:** Notification Service logs a formatted simulated notification to stdout.
-
-### 6.4 Architectural Assumptions
+### 6.1 Architectural Assumptions
 
 1. **Shared Identity Key:** `User.id` (auth) = `Employee.id` (employee) = `LeaveRequest.employeeId` (leave). The manager who creates an employee profile supplies the ID that matches the authentication record.
 2. **Eventual Consistency:** Leave balance initialization is asynchronous. The `POST /employees` call returns `201` immediately; balances appear after the `employee.created` event is consumed.
@@ -512,7 +443,7 @@ See the full document: [authentication_and_authorization.md](cross-cutting-conce
 | Service-level AuthZ | `employee-service`, `leave-management-service` | Read `X-User-Role` header, enforce RBAC |
 
 
----
+
 
 ### 7.2 Circuit Breaker
 
@@ -523,7 +454,7 @@ See the full document: [circuit_breaker_pattern.md](cross-cutting-concerns/circu
 - **States:** `CLOSED` → `OPEN` (after threshold) → `HALF-OPEN` (after wait) → `CLOSED`
 - **Fallback:** Each route has a dedicated fallback endpoint in [`FallbackController`](/api-gateway/src/main/java/com/niloy/gateway/controller/FallbackController.java) that returns a structured `503 Service Unavailable` response
 
----
+
 
 ### 7.3 Distributed Tracing
 
@@ -535,7 +466,7 @@ See the full document: [distributed_tracing.md](cross-cutting-concerns/distribut
 - **Coverage:** All 5 microservices export `traceId` + `spanId`
 - **UI:** http://localhost:16686
 
----
+
 
 ### 7.4 Structured Logging & ELK Stack
 
@@ -546,13 +477,12 @@ See the full document: [logging.md](cross-cutting-concerns/logging.md) · [elk_s
 - **Pipeline:** Service → JSON log file → Filebeat → Logstash → Elasticsearch → Kibana
 - **Kibana:** http://localhost:5601
 
----
 
 ### 7.5 Global Exception Handling
 
 See the full document: [global_exception_handling.md](cross-cutting-concerns/global_exception_handling.md)
 
----
+
 
 ### 7.6 Health & Actuator Endpoints
 
