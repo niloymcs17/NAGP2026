@@ -420,7 +420,8 @@ The system implements a hybrid communication architecture consisting of synchron
 1. **Synchronous HTTP**: Used for client-facing API requests, routed and load-balanced via Spring Cloud Gateway.
 2. **Asynchronous Messaging**: Used for decoupling cross-service operations and side effects, implemented via RabbitMQ Topic Exchanges.
 
-For the complete details of the communication patterns, RabbitMQ topology, message payloads, and schema details, see the dedicated writeup in [inter_service_communication.md](inter_service_communication.md).
+> [!NOTE]
+> For the complete details of the communication patterns, RabbitMQ topology, message payloads, and schema details, see the dedicated writeup in [inter_service_communication.md](inter_service_communication.md).
 
 ### 6.1 Architectural Assumptions
 
@@ -434,7 +435,8 @@ For the complete details of the communication patterns, RabbitMQ topology, messa
 
 ### 7.1 Authentication & Authorization
 
-See the full document: [authentication_and_authorization.md](cross-cutting-concerns/authentication_and_authorization.md)
+> [!NOTE]
+> See the full document: [authentication_and_authorization.md](cross-cutting-concerns/authentication_and_authorization.md)
 
 | Concern | Where Implemented | Mechanism |
 |---------|------------------|-----------|
@@ -447,7 +449,8 @@ See the full document: [authentication_and_authorization.md](cross-cutting-conce
 
 ### 7.2 Circuit Breaker
 
-See the full document: [circuit_breaker_pattern.md](cross-cutting-concerns/circuit_breaker_pattern.md)
+> [!NOTE]
+> See the full document: [circuit_breaker_pattern.md](cross-cutting-concerns/circuit_breaker_pattern.md)
 
 - **Library:** Resilience4j (via `spring-cloud-starter-circuitbreaker-reactor-resilience4j`)
 - **Scope:** All three downstream routes in the API Gateway
@@ -458,7 +461,8 @@ See the full document: [circuit_breaker_pattern.md](cross-cutting-concerns/circu
 
 ### 7.3 Distributed Tracing
 
-See the full document: [distributed_tracing.md](cross-cutting-concerns/distributed_tracing.md)
+> [!NOTE]
+> See the full document: [distributed_tracing.md](cross-cutting-concerns/distributed_tracing.md)
 
 - **Library:** Micrometer Tracing + OpenTelemetry (OTLP exporter)
 - **Backend:** Jaeger (`http://jaeger:4318/v1/traces`)
@@ -470,7 +474,8 @@ See the full document: [distributed_tracing.md](cross-cutting-concerns/distribut
 
 ### 7.4 Structured Logging & ELK Stack
 
-See the full document: [logging.md](cross-cutting-concerns/logging.md) · [elk_stack_centralized_logging.md](elk_stack_centralized_logging.md)
+> [!NOTE]
+> See the full document: [logging.md](cross-cutting-concerns/logging.md) · [elk_stack_centralized_logging.md](elk_stack_centralized_logging.md)
 
 - **Library:** SLF4J + Logback + `logstash-logback-encoder`
 - **Format:** JSON (machine-readable, with `traceId`, `spanId`, service name, timestamp)
@@ -480,13 +485,15 @@ See the full document: [logging.md](cross-cutting-concerns/logging.md) · [elk_s
 
 ### 7.5 Global Exception Handling
 
-See the full document: [global_exception_handling.md](cross-cutting-concerns/global_exception_handling.md)
+> [!NOTE]
+> See the full document: [global_exception_handling.md](cross-cutting-concerns/global_exception_handling.md)
 
 
 
 ### 7.6 Health & Actuator Endpoints
 
-See the full document: [health_checks.md](health_checks.md)
+> [!NOTE]
+> See the full document: [health_checks.md](health_checks.md)
 
 ---
 
