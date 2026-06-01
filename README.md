@@ -90,7 +90,7 @@ The services are parameterized to support easy overrides. When deployed in Docke
 An exportable Postman collection is included directly in the root directory:
 * [Leave_Portal.postman_collection.json](Leave_Portal.postman_collection.json)
 
-For detailed documentation of requests, refer to [POSTMAN DOCUMENTATION](documentation/POSTMAN_DOCUMENTATION.md).
+For detailed documentation of requests, refer to [POSTMAN DOCUMENTATION](documentation/postman_collection_documentation.md).
 ---
 
 ## 6. Project Documentation
