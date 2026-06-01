@@ -22,19 +22,32 @@ The portal consists of the following microservices and infrastructure components
 
 ## 2. Setup and Prerequisites
 
-Ensure the following tools are installed on your host system:
-* **Java Development Kit (JDK) 17**
-* **Apache Maven 3.8+**
-* **Docker Engine** & **Docker Compose**
+### A. Download & Extract Source Code
+1. Open the repository on GitHub.
+2. Click the green **Code** button and select **Download ZIP** (or clone the repository using `git clone <repository_url>`).
+3. Extract the downloaded ZIP archive to a folder on your host machine.
+
+### B. Required System Tools
+Ensure the following tools are installed and configured on your host system:
+* **Java Development Kit (JDK) 17** (Verify with `java -version` and ensure `JAVA_HOME` is set)
+* **Apache Maven 3.8+** (Verify with `mvn -version`)
+* **Docker Engine** & **Docker Compose** (Ensure the Docker Desktop or daemon is active)
+
+### C. IDE Configuration (Project Lombok Support)
+The codebase uses **Project Lombok** to generate boilerplates (like getters, setters, constructors, and SLF4J loggers) at compile time.
+* **No manual JAR downloads are required**: The dependency is managed automatically by Maven via the parent [pom.xml](pom.xml#L87-L90) and is fetched during compile time.
+* **Enable Annotation Processing**: To avoid syntax highlighting and compilation errors in your IDE (like IntelliJ IDEA or Eclipse), you must enable annotation processors:
+  * **IntelliJ IDEA**: Open `Settings` (or `Preferences` on macOS) $\rightarrow$ `Build, Execution, Deployment` $\rightarrow$ `Compiler` $\rightarrow$ `Annotation Processors`. Check the box for **`Enable annotation processing`** and click OK.
+  * **Lombok Plugin**: Make sure the Lombok plugin is installed and active in your IDE (pre-installed by default in modern IntelliJ IDEA versions).
 
 ---
 
 ## 3. How to Run with Docker Compose
 
-Follow these steps to compile and spin up the complete infrastructure stack:
+Follow these steps to compile, package, and boot up the complete microservices stack:
 
 ### Step 1: Package the Microservices
-Build the Java packages using Maven:
+Navigate to the root directory of the extracted project in your terminal and compile the packages:
 ```bash
 mvn clean package -DskipTests
 ```
