@@ -692,27 +692,27 @@ docker-compose up --scale authentication-service=3
 
 ## 9. Technology Stack Summary
 
-| Category | Technology | Version | Scope |
-|----------|-----------|---------|-------|
-| Language | Java | 17 | All services |
-| Build tool | Apache Maven | 3.x | All services |
-| Framework | Spring Boot | 3.2.5 | All services |
-| Service discovery | Spring Cloud Netflix Eureka | 2023.0.1 | All services |
-| API Gateway | Spring Cloud Gateway | 2023.0.1 | `api-gateway` |
-| Messaging | Spring AMQP (RabbitMQ) | 3.x | Employee, Leave, Notification |
-| Persistence | Spring Data JPA + Hibernate | 3.2.5 | Auth, Employee, Leave |
-| Security | Spring Security | 6.x | Auth |
-| JWT | JJWT | 0.11.5 | Auth, Gateway |
-| Circuit Breaker | Resilience4j | 2.1.0 | Gateway |
-| Tracing | Micrometer + OpenTelemetry | — | All services |
-| Trace backend | Jaeger | 1.50 | Infrastructure |
-| Logging | SLF4J + Logback | — | All services |
-| Log encoder | logstash-logback-encoder | 7.4 | All services |
-| Log pipeline | Filebeat + Logstash + Elasticsearch + Kibana | 8.13.0 | Infrastructure |
-| Database | PostgreSQL | 15 | Auth, Employee, Leave |
-| Message broker | RabbitMQ | 3-management | Infrastructure |
-| Containerization | Docker + Docker Compose | 3.8 | Deployment |
-| Utility | Lombok | — | All services |
+| Category | Technology | Scope |
+|----------|-----------|---------|
+| Language | Java | All services |
+| Build tool | Apache Maven | All services |
+| Framework | Spring Boot | All services |
+| Service discovery | Spring Cloud Netflix Eureka | All services |
+| API Gateway | Spring Cloud Gateway | `api-gateway` |
+| Messaging | Spring AMQP (RabbitMQ) | Employee, Leave, Notification |
+| Persistence | Spring Data JPA + Hibernate | Auth, Employee, Leave |
+| Security | Spring Security | Auth |
+| JWT | JJWT | Auth, Gateway |
+| Circuit Breaker | Resilience4j | Gateway |
+| Tracing | Micrometer + OpenTelemetry | All services |
+| Trace backend | Jaeger | Infrastructure |
+| Logging | SLF4J + Logback | All services |
+| Log encoder | logstash-logback-encoder | All services |
+| Log pipeline | Filebeat + Logstash + Elasticsearch + Kibana | Infrastructure |
+| Database | PostgreSQL | Auth, Employee, Leave |
+| Message broker | RabbitMQ | Infrastructure |
+| Containerization | Docker + Docker Compose | Deployment |
+| Utility | Lombok | All services |
 
 ---
 
