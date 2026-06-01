@@ -1,4 +1,4 @@
-# Authentication & Authorization – Employee Leave Portal
+# Authentication & Authorization 
 
 This document explains how authentication (verifying *who* a user is) and authorization (verifying *what* a user can do) are implemented as cross-cutting concerns across all microservices in this project.
 
@@ -26,8 +26,8 @@ Client (Browser / API Client)
         │  POST /auth/login  {username, password}
         ▼
 ┌─────────────────────────────────────────────────────────┐
-│                     API Gateway (:8080)                  │
-│                                                          │
+│                     API Gateway (:8080)                 │
+│                                                         │
 │  Route: /auth/**  → NO JWT filter applied               │
 │  Route: /employees/** → JwtAuthenticationFilter ✓       │
 │  Route: /leaves/**    → JwtAuthenticationFilter ✓       │
@@ -506,13 +506,4 @@ Business services (`employee-service`, `leave-management-service`) **never parse
 ### 5. BCrypt for Password Hashing
 
 Passwords are hashed using **BCrypt** with Spring Security's `BCryptPasswordEncoder`. BCrypt is adaptive (cost factor can be increased as hardware improves) and automatically incorporates a random salt, making rainbow table attacks infeasible.
-
----
-
-## Related Documents
-
-- [Circuit Breaker Pattern](/documentation/cross-cutting-concerns/circuit_breaker_pattern.md) — The `authServiceCB` circuit breaker wraps the `/auth/**` route with a stricter configuration (`slidingWindowSize: 10`, `waitDurationInOpenState: 10s`)
-- [Logging](/documentation/cross-cutting-concerns/logging.md) — Login attempts, JWT validation successes/failures, and access-denied events are all logged at appropriate levels
-- [Distributed Tracing](/documentation/cross-cutting-concerns/distributed_tracing.md) — OpenTelemetry trace context is propagated across all service calls, including authentication
-- [Global Exception Handling](/documentation/cross-cutting-concerns/global_exception_handling.md) — `InvalidCredentialsException` is mapped to `401` via the global handler in the authentication service
 

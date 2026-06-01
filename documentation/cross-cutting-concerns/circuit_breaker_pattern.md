@@ -1,5 +1,4 @@
-# Circuit Breaker Pattern – Implementation in Employee Leave Portal
-
+# Circuit Breaker Pattern 
 This document explains how the **Circuit Breaker** pattern is implemented in this project.
 
 ---
@@ -31,14 +30,14 @@ Client (Postman / App)
         ├─ [CircuitBreakerFilter]     ← monitors failures per service
         │
         │   ┌──────────────┬──────────────────────────────────┐
-        │   │  CLOSED      │  Normal – request forwarded       │
-        │   │  (healthy)   │  to downstream service            │
+        │   │  CLOSED      │  Normal – request forwarded      │
+        │   │  (healthy)   │  to downstream service           │
         │   └──────────────┴──────────────────────────────────┘
         │
         │   ┌──────────────┬──────────────────────────────────┐
-        │   │  OPEN        │  Circuit tripped – request is     │
-        │   │  (unhealthy) │  short-circuited, gateway calls   │
-        │   │              │  /fallback/<service> immediately   │
+        │   │  OPEN        │  Circuit tripped – request is    │
+        │   │  (unhealthy) │  short-circuited, gateway calls  │
+        │   │              │  /fallback/<service> immediately │
         │   └──────────────┴──────────────────────────────────┘
         │
         ▼
@@ -53,9 +52,9 @@ Each gateway route has its own dedicated Circuit Breaker instance and a unique f
 
 | Client Route | Downstream Service | CB Instance | Fallback Endpoint |
 |--------------|--------------------|-------------|-------------------|
-| `/auth/**` | Authentication Service `:8081` | `authServiceCB` | `/fallback/auth` |
-| `/employees/**` | Employee Service `:8082` | `employeeServiceCB` | `/fallback/employee` |
-| `/leaves/**` | Leave Management Service `:8083` | `leaveServiceCB` | `/fallback/leave` |
+| `/auth/**` | Authentication Service | `authServiceCB` | `/fallback/auth` |
+| `/employees/**` | Employee Service  | `employeeServiceCB` | `/fallback/employee` |
+| `/leaves/**` | Leave Management Service | `leaveServiceCB` | `/fallback/leave` |
 
 This is configured in `application.yml` using Spring Cloud Gateway's `CircuitBreaker` filter:
 
@@ -206,4 +205,3 @@ Returns failure rates, call counts, and current state for each CB instance.
 ```
 GET http://localhost:8080/actuator/circuitbreakerevents
 ```
-Returns a chronological history of state transitions (e.g., CLOSED → OPEN → HALF_OPEN → CLOSED).

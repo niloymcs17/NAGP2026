@@ -1,34 +1,10 @@
-# Global Exception Handling – Implementation in Employee Leave Portal
+# Global Exception Handling 
 
 This document explains how **Global Exception Handling** is implemented in this project, why it was needed, and exactly how every error flows from controller to client.
 
 ---
 
-## Problem: Before Implementation
-
-Error handling was scattered manually inside every controller method as inline `ResponseEntity` returns with **plain string bodies**. There was no safety net for uncaught exceptions.
-
-```java
-// LeaveController.java — repeated 20+ times
-return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Leave request not found");
-return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only managers can approve leave requests");
-return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Start date cannot be in the past");
-
-// EmployeeController.java
-return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Employee not found");
-return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only managers can create employees");
-```
-
-| Problem | Impact |
-|---------|--------|
-| Plain string error bodies | Clients receive `"Leave request not found"` (a raw string), not a JSON object — breaks client-side parsing |
-| No standard error shape | Every error looks different; no `timestamp`, `path`, or `status` field |
-| No uncaught exception safety | Unexpected `NullPointerException` or DB error returns a raw Spring Whitelabel HTML error page |
-| Business logic mixed with HTTP concerns | Controllers were bloated — validation, business rules, and HTTP error formatting all in one place |
-
----
-
-## Solution: Standard Error Response Shape
+## Standard Error Response Shape
 
 After implementation, **every error** from every service returns this consistent JSON shape:
 
@@ -48,14 +24,14 @@ This is produced by the `ErrorResponse` Java record, shared across all services.
 
 ## Services in Scope
 
-| Service | Handler Type | Priority |
-|---------|-------------|----------|
-| `leave-management-service` | Spring MVC `@RestControllerAdvice` | Highest — 20+ inline errors refactored |
-| `employee-service` | Spring MVC `@RestControllerAdvice` | High |
-| `authentication-service` | Spring MVC `@RestControllerAdvice` | Medium |
-| `api-gateway` | Reactive WebFlux `AbstractErrorWebExceptionHandler` | Medium |
-| `notification-service` | No REST controller — consumer only | Not needed |
-| `eureka-server` | No business REST controller | Not needed |
+| Service | Handler Type |
+|---------|-------------|
+| `leave-management-service` | Spring MVC `@RestControllerAdvice` |
+| `employee-service` | Spring MVC `@RestControllerAdvice` |
+| `authentication-service` | Spring MVC `@RestControllerAdvice` |
+| `api-gateway` | Reactive WebFlux `AbstractErrorWebExceptionHandler` |
+| `notification-service` | No REST controller — consumer only |
+| `eureka-server` | No business REST controller |
 
 ---
 
@@ -248,40 +224,6 @@ Spring Boot registers a `DefaultErrorWebExceptionHandler` at order `-1`. By usin
 
 ---
 
-### 5 – Refactored Controllers
-
-Controllers now contain **zero inline error responses**. They throw typed exceptions and let the `GlobalExceptionHandler` handle all HTTP formatting.
-
-#### Before (employee-service):
-```java
-Employee employee = employeeRepository.findById(id).orElse(null);
-if (employee == null) {
-    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Employee not found");
-}
-```
-
-#### After:
-```java
-Employee employee = employeeRepository.findById(id)
-        .orElseThrow(() -> new EmployeeNotFoundException(id));
-```
-
-#### Before (leave-management-service):
-```java
-if (!userRole.equals("MANAGER")) {
-    return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only managers can approve leave requests");
-}
-```
-
-#### After:
-```java
-if (!userRole.equals("MANAGER")) {
-    throw new AccessDeniedException("Only managers can approve leave requests");
-}
-```
-
----
-
 ## Error Response Examples
 
 ### 404 – Employee not found
@@ -393,23 +335,4 @@ Content-Type: application/json
 }
 ```
 
----
 
-## File Reference
-
-| File | Action | Service |
-|------|--------|---------|
-| `exception/ErrorResponse.java` | Created | employee, leave, auth |
-| `exception/EmployeeNotFoundException.java` | Created | employee |
-| `exception/EmployeeAlreadyExistsException.java` | Created | employee |
-| `exception/AccessDeniedException.java` | Created | employee, leave |
-| `exception/LeaveRequestNotFoundException.java` | Created | leave |
-| `exception/InsufficientLeaveBalanceException.java` | Created | leave |
-| `exception/InvalidLeaveRequestException.java` | Created | leave |
-| `exception/LeaveConflictException.java` | Created | leave |
-| `exception/InvalidCredentialsException.java` | Created | auth |
-| `exception/GlobalExceptionHandler.java` | Created | employee, leave, auth |
-| `exception/GlobalErrorWebExceptionHandler.java` | Created | api-gateway |
-| `controller/EmployeeController.java` | Refactored | employee |
-| `controller/LeaveController.java` | Refactored | leave (20+ changes) |
-| `controller/AuthController.java` | Refactored | auth |

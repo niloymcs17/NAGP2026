@@ -1,5 +1,4 @@
-# Distributed Tracing – Implementation in Employee Leave Portal
-
+# Distributed Tracing 
 This document explains how **Distributed Tracing** is configured and implemented across the microservices in this project using Micrometer Tracing, OpenTelemetry (OTel), and Jaeger.
 
 ---
@@ -19,19 +18,60 @@ Distributed tracing allows us to visualize this entire execution path, track lat
 ## How the Request Flow & Tracing Works
 
 ```mermaid
-graph TD
-    Client[Client Request] -->|HTTP /leaves/apply| Gateway[API Gateway :8080]
-    Gateway -->|Generates Trace ID & Span ID| Jaeger[Jaeger OTLP Receiver :4318]
-    
-    Gateway -->|HTTP with traceParent Header| LeaveService[Leave Service :8083]
-    LeaveService -->|Propagates Trace ID| Jaeger
-    
-    LeaveService -->|Publish Msg with Trace Metadata| RabbitMQ[(RabbitMQ :5672)]
-    
-    RabbitMQ -->|Consume Message| NotificationService[Notification Service :8084]
-    NotificationService -->|Propagates Trace ID| Jaeger
-    
-    classDef jaeger fill:#ff9900,stroke:#333,stroke-width:2px;
+flowchart TD
+    %% Define Styles
+    classDef gateway fill:#1b6ca8,stroke:#1b6ca8,stroke-width:1px,color:#fff;
+    classDef service fill:#2d6a4f,stroke:#2d6a4f,stroke-width:1px,color:#fff;
+    classDef broker fill:#d08c00,stroke:#d08c00,stroke-width:1px,color:#fff;
+    classDef jaeger fill:#e05a47,stroke:#e05a47,stroke-width:1px,color:#fff;
+    classDef client fill:#f4f4f9,stroke:#ccc,stroke-width:1px,color:#333;
+
+    %% Subgraphs for Logical Grouping
+    subgraph ClientSpace ["Client Entry"]
+        Client["Client Request<br/>(Postman / Web App)"]
+    end
+
+    subgraph GatewaySpace ["Routing & Trace Initiation"]
+        Gateway["API Gateway (:8080)<br/><i>Generates & Injects Trace Context</i>"]
+    end
+
+    subgraph ServiceSpace ["Microservices (Trace Propagators)"]
+        AuthService["Authentication Service (:8081)"]
+        EmployeeService["Employee Service (:8082)"]
+        LeaveService["Leave Management Service (:8083)"]
+        NotificationService["Notification Service (:8084)"]
+    end
+
+    subgraph BrokerSpace ["Message Broker"]
+        RabbitMQ[["RabbitMQ Queue (:5672)<br/><i>Propagates metadata headers</i>"]]
+    end
+
+    subgraph ObsSpace ["Telemetry Backend"]
+        Jaeger[("Jaeger Collector (:4318)<br/><i>Aggregates & visualizes spans</i>")]
+    end
+
+    %% Execution Flows (Solid lines)
+    Client -->|HTTP request| Gateway
+    Gateway -->|HTTP + traceparent header| AuthService
+    Gateway -->|HTTP + traceparent header| EmployeeService
+    Gateway -->|HTTP + traceparent header| LeaveService
+
+    %% Asynchronous Flow via Queue
+    LeaveService -->|Publish message with Trace Context| RabbitMQ
+    RabbitMQ -->|Consume message| NotificationService
+
+    %% Background Telemetry Reporting (Dashed lines)
+    Gateway -.->|Sends spans| Jaeger
+    AuthService -.->|Sends spans| Jaeger
+    EmployeeService -.->|Sends spans| Jaeger
+    LeaveService -.->|Sends spans| Jaeger
+    NotificationService -.->|Sends spans| Jaeger
+
+    %% Assign styles
+    class Client client;
+    class Gateway gateway;
+    class AuthService,EmployeeService,LeaveService,NotificationService service;
+    class RabbitMQ broker;
     class Jaeger jaeger;
 ```
 
@@ -47,7 +87,6 @@ The tracing functionality is powered by the following libraries configured in ea
 - **Micrometer Tracing Bridge OTel (`micrometer-tracing-bridge-otel`)**: Bridges Spring Boot's Micrometer observation APIs with OpenTelemetry.
 - **OpenTelemetry Exporter OTLP (`opentelemetry-exporter-otlp`)**: Exports tracing data using the standard OpenTelemetry Protocol (OTLP) over HTTP/gRPC.
 
-Java configuration was modified because custom `@Bean` definitions are used for `RabbitTemplate` (in `employee-service`, `leave-management-service`, and `notification-service`) and `SimpleRabbitListenerContainerFactory` (in `notification-service`), which bypasses automatic property binding for those custom beans. Observation had to be programmatically enabled by calling `.setObservationEnabled(true)` on these custom beans.
 
 ---
 
@@ -99,22 +138,11 @@ To support seamless transitions between local IDE runs and containerized runs, t
 | **Local Development** (IDE / Maven) | `http://localhost:4318/v1/traces` | `application.yml` |
 | **Docker Compose** (`docker-compose.yml`) | `http://jaeger:4318/v1/traces` | Injected environment variable: `MANAGEMENT_OTLP_TRACING_ENDPOINT` |
 
-> [vanilla markdown]
 > **Note**: Spring Boot automatically binds environment variables (like `MANAGEMENT_OTLP_TRACING_ENDPOINT`) to overwrite properties defined in `application.yml`.
 
 ---
 
-## Sampling Probabilities
 
-The `management.tracing.sampling.probability` property controls what percentage of requests are sent to Jaeger:
-
-| Value | Percentage | Suggested Use Case |
-| :--- | :--- | :--- |
-| **`1.0`** | **100%** | **Development / Testing / Debugging** |
-| `0.1` | 10% | Production (reduces network/storage overhead for high traffic) |
-| `0.5` | 50% | Staging / Performance testing environments |
-
----
 
 ## How to Verify & View Traces
 

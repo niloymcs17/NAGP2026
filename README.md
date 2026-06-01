@@ -250,7 +250,7 @@ For deeper insights into specific aspects of the architecture, configuration, an
 
 ### 🌐 API Reference & Verification
 * [API Endpoints Reference](documentation/api_endpoints.md) — Full REST API specifications, query parameters, headers, and payloads.
-* [Postman Testing Guide](documentation/POSTMAN_DOCUMENTATION.md) — Step-by-step guide to importing collections and executing end-to-end flows.
+* [Postman Testing Guide](documentation/POSTMAN_DOCUMENTATION.md) — Step-by-step guide to import collections and executing end-to-end flows.
 
 ### 🛠️ Cross-Cutting Concerns
 * [Authentication & Authorization](documentation/cross-cutting-concerns/authentication_and_authorization.md) — JWT generation, role-based controls (Employee vs. Manager), and security filters.
