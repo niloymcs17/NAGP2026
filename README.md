@@ -11,12 +11,12 @@ The portal consists of the following microservices and infrastructure components
 ![Microservice Architecture](documentation/Microservice%20Architecture%20Diagram.png)
 
 ### Microservice Summary:
-* **`eureka-server`** (Port `8761`): Service registry for dynamic discovery and load balancing.
-* **`api-gateway`** (Port `8080`): Gateway routing requests to downstream services and distributing load between scaled replicas.
-* **`authentication-service`**: Handles JWT issuance, validation, and role-based authorization.
-* **`employee-service`**: Manages employee profiles and hierarchy (manager-employee relationships).
-* **`leave-management-service`**: Manages leave request processing, balance checks, and concurrency control.
-* **`notification-service`**: Asynchronously listens for RabbitMQ events to process alerts.
+* **`eureka-server`** (Port `8761`): Service registry for dynamic discovery and load balancing. (Docker Image: [dreamspace04/eureka-server](https://hub.docker.com/r/dreamspace04/eureka-server))
+* **`api-gateway`** (Port `8080`): Gateway routing requests to downstream services and distributing load between scaled replicas. (Docker Image: [dreamspace04/api-gateway](https://hub.docker.com/r/dreamspace04/api-gateway))
+* **`authentication-service`**: Handles JWT issuance, validation, and role-based authorization. (Docker Image: [dreamspace04/authentication-service](https://hub.docker.com/r/dreamspace04/authentication-service))
+* **`employee-service`**: Manages employee profiles and hierarchy (manager-employee relationships). (Docker Image: [dreamspace04/employee-service](https://hub.docker.com/r/dreamspace04/employee-service))
+* **`leave-management-service`**: Manages leave request processing, balance checks, and concurrency control. (Docker Image: [dreamspace04/leave-management-service](https://hub.docker.com/r/dreamspace04/leave-management-service))
+* **`notification-service`**: Asynchronously listens for RabbitMQ events to process alerts. (Docker Image: [dreamspace04/notification-service](https://hub.docker.com/r/dreamspace04/notification-service))
 
 ---
 
