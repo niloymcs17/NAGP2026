@@ -436,7 +436,7 @@ The system implements a hybrid communication architecture consisting of synchron
 ### 7.1 Authentication & Authorization
 
 > [!NOTE]
-> See the full document: [authentication_and_authorization.md](cross-cutting-concerns/authentication_and_authorization.md)
+> See the full document: [cross_cutting_concerns.md](cross_cutting_concerns.md#3-authentication--authorization)
 
 | Concern | Where Implemented | Mechanism |
 |---------|------------------|-----------|
@@ -450,7 +450,7 @@ The system implements a hybrid communication architecture consisting of synchron
 ### 7.2 Circuit Breaker
 
 > [!NOTE]
-> See the full document: [circuit_breaker_pattern.md](cross-cutting-concerns/circuit_breaker_pattern.md)
+> See the full document: [cross_cutting_concerns.md](cross_cutting_concerns.md#2-circuit-breaker-pattern)
 
 - **Library:** Resilience4j (via `spring-cloud-starter-circuitbreaker-reactor-resilience4j`)
 - **Scope:** All three downstream routes in the API Gateway
@@ -462,7 +462,7 @@ The system implements a hybrid communication architecture consisting of synchron
 ### 7.3 Distributed Tracing
 
 > [!NOTE]
-> See the full document: [distributed_tracing.md](cross-cutting-concerns/distributed_tracing.md)
+> See the full document: [cross_cutting_concerns.md](cross_cutting_concerns.md#5-distributed-tracing)
 
 - **Library:** Micrometer Tracing + OpenTelemetry (OTLP exporter)
 - **Backend:** Jaeger (`http://jaeger:4318/v1/traces`)
@@ -475,7 +475,7 @@ The system implements a hybrid communication architecture consisting of synchron
 ### 7.4 Structured Logging & ELK Stack
 
 > [!NOTE]
-> See the full document: [logging.md](cross-cutting-concerns/logging.md) · [elk_stack_centralized_logging.md](elk_stack_centralized_logging.md)
+> See the full document: [cross_cutting_concerns.md](cross_cutting_concerns.md#1-logging)
 
 - **Library:** SLF4J + Logback + `logstash-logback-encoder`
 - **Format:** JSON (machine-readable, with `traceId`, `spanId`, service name, timestamp)
@@ -486,7 +486,7 @@ The system implements a hybrid communication architecture consisting of synchron
 ### 7.5 Global Exception Handling
 
 > [!NOTE]
-> See the full document: [global_exception_handling.md](cross-cutting-concerns/global_exception_handling.md)
+> See the full document: [cross_cutting_concerns.md](cross_cutting_concerns.md#4-global-exception-handling)
 
 
 

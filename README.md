@@ -120,10 +120,10 @@ For deeper insights into specific aspects of the architecture, configuration, an
 * [Postman Testing Guide](documentation/POSTMAN_DOCUMENTATION.md) — Step-by-step guide to import collections and executing end-to-end flows.
 
 ### 🛠️ Cross-Cutting Concerns
-* [Authentication & Authorization](documentation/cross-cutting-concerns/authentication_and_authorization.md) — JWT generation, role-based controls (Employee vs. Manager), and security filters.
-* [Circuit Breaker Pattern](documentation/cross-cutting-concerns/circuit_breaker_pattern.md) — Fault tolerance configuration, rate limits, and fallback controllers using Resilience4j.
-* [Global Exception Handling](documentation/cross-cutting-concerns/global_exception_handling.md) — Standardized JSON error response schemas and controller advice classes.
+* [Authentication & Authorization](documentation/cross_cutting_concerns.md#3-authentication--authorization) — JWT generation, role-based controls (Employee vs. Manager), and security filters.
+* [Circuit Breaker Pattern](documentation/cross_cutting_concerns.md#2-circuit-breaker-pattern) — Fault tolerance configuration, rate limits, and fallback controllers using Resilience4j.
+* [Global Exception Handling](documentation/cross_cutting_concerns.md#4-global-exception-handling) — Standardized JSON error response schemas and controller advice classes.
 * [Centralized Logging & ELK Stack](documentation/elk_stack_centralized_logging.md) — Step-by-step setup for Filebeat, Logstash, Elasticsearch, and Kibana.
-* [Distributed Tracing](documentation/cross-cutting-concerns/distributed_tracing.md) — Trace parent context propagation across services/queues and Jaeger visualizer.
+* [Distributed Tracing](documentation/cross_cutting_concerns.md#5-distributed-tracing) — Trace parent context propagation across services/queues and Jaeger visualizer.
 * [Health Checks & Actuator Monitoring](documentation/health_checks.md) — Exposures, indicators, and metrics via Spring Boot Actuator.
-* [Logging Details](documentation/cross-cutting-concerns/logging.md) — Logback configuration and service logging levels.
+* [Logging Details](documentation/cross_cutting_concerns.md#1-logging) — Logback configuration and service logging levels.
