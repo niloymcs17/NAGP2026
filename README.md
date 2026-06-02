@@ -24,8 +24,11 @@ The portal consists of the following microservices and infrastructure components
 
 ### A. Download & Extract Source Code
 1. Open the repository on GitHub.
-2. Click the green **Code** button and select **Download ZIP** (or clone the repository using `git clone [<repository_url>](https://github.com/niloymcs17/NAGP2026.git)`).
-3. Extract the downloaded ZIP archive to a folder on your host machine.
+2. Click the green **Code** button and select **Download ZIP** or clone the repository directly using:
+   ```bash
+   git clone https://github.com/niloymcs17/NAGP2026.git
+   ```
+3. Extract the downloaded ZIP archive to a folder on your host machine (if downloaded as a ZIP).
 
 ### B. Required System Tools
 Ensure the following tools are installed and configured on your host system:
