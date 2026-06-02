@@ -126,7 +126,9 @@ For deeper insights into specific aspects of the architecture, configuration, an
 * [Authentication & Authorization](documentation/cross_cutting_concerns.md#3-authentication--authorization) — JWT generation, role-based controls (Employee vs. Manager), and security filters.
 * [Circuit Breaker Pattern](documentation/cross_cutting_concerns.md#2-circuit-breaker-pattern) — Fault tolerance configuration, rate limits, and fallback controllers using Resilience4j.
 * [Global Exception Handling](documentation/cross_cutting_concerns.md#4-global-exception-handling) — Standardized JSON error response schemas and controller advice classes.
-* [Centralized Logging & ELK Stack](documentation/elk_stack_centralized_logging.md) — Step-by-step setup for Filebeat, Logstash, Elasticsearch, and Kibana.
 * [Distributed Tracing](documentation/cross_cutting_concerns.md#5-distributed-tracing) — Trace parent context propagation across services/queues and Jaeger visualizer.
-* [Health Checks & Actuator Monitoring](documentation/health_checks.md) — Exposures, indicators, and metrics via Spring Boot Actuator.
 * [Logging Details](documentation/cross_cutting_concerns.md#1-logging) — Logback configuration and service logging levels.
+
+###  Optional Enhancements (Bonus)
+* [Centralized Logging & ELK Stack](documentation/elk_stack_centralized_logging.md) — Step-by-step setup for Filebeat, Logstash, Elasticsearch, and Kibana.
+* [Health Checks & Actuator Monitoring](documentation/health_checks.md) — Exposures, indicators, and metrics via Spring Boot Actuator.
