@@ -212,7 +212,7 @@ The design ensures that **no downstream microservice trusts the raw client reque
 flowchart TD
     Client["Client<br>(Browser / API Client)"]
     
-    subgraph Gateway ["API Gateway (:8080)"]
+    subgraph Gateway ["API Gateway"]
         direction TB
         subgraph Routes ["Routing Engine"]
             Public["Route: /auth/**<br><i>(No JWT Filter)</i>"]
@@ -414,13 +414,13 @@ Passwords are encrypted using BCrypt, which automatically incorporates a random 
 
 ## 4. Global Exception Handling
 
-This section explains how **Global Exception Handling** is implemented in this project, why it was needed, and exactly how every error flows from controller to client.
+Every microservice in this project utilizes a centralized exception handling mechanism to ensure a consistent error format for API consumers.
 
 ---
 
 ### Standard Error Response Shape
 
-Every error from every service returns a consistent JSON shape:
+All errors return a unified JSON payload mapping to Spring MVC `@RestControllerAdvice` (for MVC services) or a reactive `WebExceptionHandler` (for `api-gateway`):
 
 ```json
 {
@@ -432,65 +432,11 @@ Every error from every service returns a consistent JSON shape:
 }
 ```
 
-This consistent representation is shared across all services using a unified data record.
-
 ---
 
-### Services in Scope
+### Custom Exception Mapping Matrix
 
-| Service | Handler Type |
-|---------|-------------|
-| `leave-management-service` | Spring MVC `@RestControllerAdvice` |
-| `employee-service` | Spring MVC `@RestControllerAdvice` |
-| `authentication-service` | Spring MVC `@RestControllerAdvice` |
-| `api-gateway` | Reactive WebFlux exception handler |
-| `notification-service` | No REST controller — consumer only |
-| `eureka-server` | No business REST controller |
-
----
-
-### Architecture: How an Error Flows
-
-```
-Client Request
-      │
-      ▼
-  Controller Method
-      │
-      │  throws CustomException (e.g., LeaveRequestNotFoundException)
-      │
-      ▼
-  GlobalExceptionHandler  (@RestControllerAdvice)
-      │
-      │  Maps Exception to appropriate HTTP Status Code
-      │  and builds unified Error Response
-      │
-      ▼
-  HTTP Response
-  {
-    "timestamp": "...",
-    "status": 404,
-    "error": "Not Found",
-    "message": "Leave request not found with ID: 99",
-    "path": "/leaves/99/approve"
-  }
-```
-
-For the **API Gateway** (reactive stack), a custom reactive error Web exception handler intercepts all unhandled errors before they reach the client, overriding default container errors with the standard JSON shape.
-
----
-
-### Implementation Details
-
-#### 1 – Unified Error Model
-
-Each service maintains a common record format carrying the timestamp, HTTP status, standard error category, business-friendly descriptive message, and the requested path.
-
-#### 2 – Custom Domain Exceptions
-
-Controllers throw typed, custom domain exceptions rather than building error responses inline. Each exception encodes the business meaning of the failure and maps to a specific HTTP status code.
-
-##### Exception Mapping Matrix
+Controllers throw custom domain exceptions which are automatically caught and translated into the standard response shape:
 
 | Exception Type | Target Service | HTTP Status | Standard Message Pattern |
 |:---|:---|:---:|:---|
@@ -502,105 +448,6 @@ Controllers throw typed, custom domain exceptions rather than building error res
 | `LeaveConflictException` | `leave-management-service` | 409 Conflict | *Overlapping leave request detected for these dates.* |
 | `AccessDeniedException` | MVC Services | 403 Forbidden | Custom authorization description |
 | `InvalidCredentialsException` | `authentication-service` | 401 Unauthorized | *Invalid username or password* |
-
----
-
-#### 3 – Global MVC Exception Handlers
-
-Each of the Spring MVC services utilizes a centralized `@RestControllerAdvice` component. The framework automatically routes thrown exceptions to their designated handler methods to return the appropriate HTTP entity and status code.
-
-This centralized exception handling covers:
-- Resource not found errors (mapping to `404`)
-- Access control/authorization violations (mapping to `403`)
-- Bad input/validation constraints (mapping to `400`)
-- State/transaction conflicts (mapping to `409`)
-- Uncaught generic exceptions (mapping to `500` as a safety net)
-
----
-
-#### 4 – Gateway Exception Handler
-
-Because the API Gateway runs on a reactive non-blocking loop (Spring WebFlux), the MVC `@RestControllerAdvice` annotation does not apply. Instead, a custom reactive handler intercepts errors with high priority, formatting the response into the standard system JSON format and overriding default container HTML error pages.
-
----
-
-### Error Response Examples
-
-#### 404 – Employee not found
-```json
-{
-  "timestamp": "2026-05-26T14:00:00Z",
-  "status": 404,
-  "error": "Not Found",
-  "message": "Employee not found with ID: 99",
-  "path": "/employees/99"
-}
-```
-
----
-
-#### 400 – Insufficient leave balance
-```json
-{
-  "timestamp": "2026-05-26T14:01:00Z",
-  "status": 400,
-  "error": "Bad Request",
-  "message": "Insufficient leave balance. Remaining: 2, Requested: 5",
-  "path": "/leaves/apply"
-}
-```
-
----
-
-#### 403 – Role-based access denied
-```json
-{
-  "timestamp": "2026-05-26T14:02:00Z",
-  "status": 403,
-  "error": "Forbidden",
-  "message": "Only managers can approve leave requests",
-  "path": "/leaves/12/approve"
-}
-```
-
----
-
-#### 409 – Overlapping leave dates
-```json
-{
-  "timestamp": "2026-05-26T14:03:00Z",
-  "status": 409,
-  "error": "Conflict",
-  "message": "Overlapping leave request detected for these dates.",
-  "path": "/leaves/apply"
-}
-```
-
----
-
-#### 401 – Invalid credentials
-```json
-{
-  "timestamp": "2026-05-26T14:04:00Z",
-  "status": 401,
-  "error": "Unauthorized",
-  "message": "Invalid username or password",
-  "path": "/auth/login"
-}
-```
-
----
-
-#### 500 – Unexpected error (catch-all)
-```json
-{
-  "timestamp": "2026-05-26T14:05:00Z",
-  "status": 500,
-  "error": "Internal Server Error",
-  "message": "An unexpected error occurred. Please try again later.",
-  "path": "/leaves/apply"
-}
-```
 
 ---
 
@@ -627,22 +474,22 @@ flowchart TD
     end
 
     subgraph GatewaySpace ["Routing & Trace Initiation"]
-        Gateway["API Gateway (:8080)<br/><i>Generates & Injects Trace Context</i>"]
+        Gateway["API Gateway<br/><i>Generates & Injects Trace Context</i>"]
     end
 
     subgraph ServiceSpace ["Microservices (Trace Propagators)"]
-        AuthService["Authentication Service (:8081)"]
-        EmployeeService["Employee Service (:8082)"]
-        LeaveService["Leave Management Service (:8083)"]
-        NotificationService["Notification Service (:8084)"]
+        AuthService["Authentication Service"]
+        EmployeeService["Employee Service"]
+        LeaveService["Leave Management Service"]
+        NotificationService["Notification Service"]
     end
 
     subgraph BrokerSpace ["Message Broker"]
-        RabbitMQ[["RabbitMQ Queue (:5672)<br/><i>Propagates metadata headers</i>"]]
+        RabbitMQ[["RabbitMQ Queue<br/><i>Propagates metadata headers</i>"]]
     end
 
     subgraph ObsSpace ["Telemetry Backend"]
-        Jaeger[("Jaeger Collector (:4318)<br/><i>Aggregates & visualizes spans</i>")]
+        Jaeger[("Jaeger Collector<br/><i>Aggregates & visualizes spans</i>")]
     end
 
     %% Execution Flows (Solid lines)
