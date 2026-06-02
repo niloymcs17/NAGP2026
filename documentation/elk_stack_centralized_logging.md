@@ -40,349 +40,53 @@ This document explains how **centralized log aggregation** is configured and imp
         └───────────────┘
 ```
 
-```mermaid
-flowchart LR
-    subgraph Services ["Microservices (all 6)"]
-        GW["api-gateway"]
-        AS["authentication-service"]
-        ES["employee-service"]
-        LS["leave-management-service"]
-        NS["notification-service"]
-        EU["eureka-server"]
-    end
-
-    subgraph ELK ["ELK Stack"]
-        FB["Filebeat"]
-        LST["Logstash"]
-        ESE["Elasticsearch"]
-        KB["Kibana"]
-    end
-
-    Services -->|"stdout JSON\n(docker profile)"| FB
-    FB -->|"Beats protocol\n:5044"| LST
-    LST -->|"Indexed events\n:9200"| ESE
-    ESE --> KB
-
-    style ELK fill:#f0f4ff,stroke:#4a6fa5
-    style Services fill:#f9fff0,stroke:#5a8a5a
-```
-
 ---
 
-## Services In Scope
+## Services In Scope that emits log 
 
-| Service | Emits JSON Logs |
-|---|---|---|
-| `api-gateway` |  ✅ Yes |
-| `authentication-service` |  ✅ Yes |
-| `employee-service` |  ✅ Yes |
-| `leave-management-service` |  ✅ Yes |
-| `notification-service` |  ✅ Yes |
-| `eureka-server` |  ✅ Yes |
-
----
-
-## Tech Stack & Dependencies
-
-| Component | Technology | Version |
-|---|---|---|
-| JSON log encoder | `net.logstash.logback:logstash-logback-encoder` | 7.4 |
-| Log collector/shipper | Filebeat | 8.13.0 |
-| Log pipeline/enricher | Logstash | 8.13.0 |
-| Search & store | Elasticsearch | 8.13.0 |
-| Visualization | Kibana | 8.13.0 |
-
-> [!NOTE]
-> `logstash-logback-encoder` is declared in the **parent `pom.xml`** under both `<dependencyManagement>` (pinned to 7.4) and the shared `<dependencies>` block. This means **all 6 services inherit it automatically** — no per-service `pom.xml` changes are needed.
+| Service 
+|---|
+| `api-gateway` | 
+| `authentication-service` | 
+| `employee-service` | 
+| `leave-management-service` | 
+| `notification-service` | 
+| `eureka-server` | 
 
 ---
 
 ## Implementation Details
 
-### 1. Parent POM — `pom.xml`
+The centralized logging pipeline is configured through the following key components:
 
-[pom.xml](/pom.xml) was modified to include the encoder in two places:
+### 1. Parent POM Dependency
+Every microservice imports `net.logstash.logback:logstash-logback-encoder` to format log outputs as structured JSON.
 
-```xml
-<!-- dependencyManagement — pins the version -->
-<dependency>
-    <groupId>net.logstash.logback</groupId>
-    <artifactId>logstash-logback-encoder</artifactId>
-    <version>7.4</version>
-</dependency>
+### 2. Profile-Switched Logback Configurations (`logback-spring.xml`)
+Each microservice is configured with two log appenders:
+* **`CONSOLE` appender (active during local dev / `!docker` profile)**: Human-readable text format.
+* **`JSON_STDOUT` appender (active during containerized run / `docker` profile)**: Outputs structured JSON containing timestamps, log severity levels, message text, logger class, thread details, application names, and container hostname/instance details.
 
-<!-- shared dependencies — auto-included in every service -->
-<dependency>
-    <groupId>net.logstash.logback</groupId>
-    <artifactId>logstash-logback-encoder</artifactId>
-</dependency>
-```
+### 3. Log Levels (`application.yml`)
+Core application code (`com.niloy.*`) is configured to log at the `DEBUG` level, while third-party framework classes (like Spring Framework and Hibernate internals) are capped at `WARN` to minimize log volume noise.
 
----
+### 4. Logstash Filtering Pipeline (`logstash.conf`)
+Logstash listens on port `5044` for incoming beats and processes them through three stages:
+* **Input**: Accepts log events forwarded by Filebeat.
+* **Filter**: Automatically parses the JSON payloads from incoming messages, synchronizes event timestamps with Elasticsearch, and hoists custom attributes (like service name, trace ID, and log level) to the root document level for efficient indexing.
+* **Output**: Routes the parsed and indexed events to Elasticsearch under a rolling daily index name (`leave-portal-logs-YYYY.MM.dd`).
 
-### 2. Logback Configuration — `logback-spring.xml`
+### 5. Filebeat Log Collection (`filebeat.yml`)
+Filebeat runs as a daemon log shipper that reads log files from `/var/lib/docker/containers/`. It is configured to:
+* Automatically discover running Docker containers.
+* Filter and collect logs exclusively from containers running image names matching `dreamspace04/*` (avoiding background noise from message brokers and database containers).
+* Inject host and Docker container metadata (like container name and ID) into every log trace.
 
-A `logback-spring.xml` file was created in `src/main/resources/` for every service. Each file configures **two appenders**, selected by Spring profile:
-
-| Appender | Name | Profile Active | Output Format |
-|---|---|---|---|
-| Human-readable | `CONSOLE` | `!docker` (local dev) | `%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n` |
-| Structured JSON | `JSON_STDOUT` | `docker` | `LogstashEncoder` — JSON with `@timestamp`, `level`, `service`, `message`, `logger`, `thread` |
-
-**Full template** (identical across all 6 services):
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-
-    <!-- Read the Spring app name for the "service" JSON field -->
-    <springProperty scope="context" name="APP_NAME" source="spring.application.name"/>
-
-    <!-- Human-readable console (local dev) -->
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
-
-    <!-- Structured JSON to stdout (Docker / Filebeat) -->
-    <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <customFields>{"service":"${APP_NAME}","instance":"${HOSTNAME}"}</customFields>
-            <fieldNames>
-                <timestamp>@timestamp</timestamp>
-                <message>message</message>
-                <logger>logger</logger>
-                <thread>thread</thread>
-                <level>level</level>
-            </fieldNames>
-        </encoder>
-    </appender>
-
-    <!-- Use JSON in Docker profile, console otherwise -->
-    <springProfile name="docker">
-        <root level="INFO">
-            <appender-ref ref="JSON_STDOUT"/>
-        </root>
-    </springProfile>
-    <springProfile name="!docker">
-        <root level="INFO">
-            <appender-ref ref="CONSOLE"/>
-        </root>
-    </springProfile>
-
-</configuration>
-```
-
-**Files created:**
-- [api-gateway/logback-spring.xml](/api-gateway/src/main/resources/logback-spring.xml)
-- [authentication-service/logback-spring.xml](/authentication-service/src/main/resources/logback-spring.xml)
-- [employee-service/logback-spring.xml](/employee-service/src/main/resources/logback-spring.xml)
-- [leave-management-service/logback-spring.xml](/leave-management-service/src/main/resources/logback-spring.xml)
-- [notification-service/logback-spring.xml](/notification-service/src/main/resources/logback-spring.xml)
-- [eureka-server/logback-spring.xml](/eureka-server/src/main/resources/logback-spring.xml)
-
-> [!IMPORTANT]
-> The `service` field in every JSON log event is automatically populated from `spring.application.name` via the `<springProperty>` tag. This is the field you use in Kibana to filter logs by service — e.g. `service: leave-management-service`.
-
----
-
-### 3. Logging Levels — `application.yml`
-
-All services already had the following `logging:` block configured. The only service that was missing it was `eureka-server`, which was updated:
-
-```yaml
-# ── Logging ──────────────────────────────────────────────────────────────────
-logging:
-  level:
-    root: INFO
-    com.niloy: DEBUG   # Full DEBUG for all project packages
-    org.springframework: WARN
-    org.hibernate: WARN
-```
-
----
-
-### 4. Logstash Pipeline — `elk/logstash/pipeline/logstash.conf`
-
-[logstash.conf](/elk/logstash/pipeline/logstash.conf) defines the full log processing pipeline:
-
-```text
-input {
-  beats {
-    port => 5044          ← Receives events from Filebeat
-  }
-}
-
-filter {
-  if [message] =~ /^\{/ {
-    json {
-      source => "message"  ← Parses the JSON string from LogstashEncoder
-      target => "app"       ← Parsed object stored temporarily under "app"
-    }
-
-    # Truncate nanosecond precision to milliseconds (Joda-Time compatibility)
-    if [app][@timestamp] {
-      mutate {
-        gsub => [ "[app][@timestamp]", '(\.\d{3})\d+', '\1' ]
-      }
-      date {
-        match => ["[app][@timestamp]", "ISO8601"]  ← Sync Elasticsearch @timestamp
-        target => "@timestamp"
-      }
-      mutate {
-        remove_field => ["[app][@timestamp]"]
-      }
-    }
-
-    # Hoist all parsed fields (level, message, service, instance, logger…) to root
-    ruby {
-      code => "
-        app = event.get('app')
-        if app.is_a?(Hash)
-          app.each { |k, v| event.set(k, v) }
-        end
-      "
-    }
-
-    mutate {
-      remove_field => ["app"]  ← Clean up the temporary object
-    }
-  }
-}
-
-output {
-  elasticsearch {
-    hosts => ["http://elasticsearch:9200"]
-    index => "leave-portal-logs-%{+YYYY.MM.dd}"  ← Daily index rotation
-  }
-  stdout { codec => rubydebug }  ← Debug output in Logstash container logs
-}
-```
-
-**Key design choices:**
-- **Daily index rotation** (`leave-portal-logs-YYYY.MM.dd`) keeps indices manageable and allows date-range filtering in Kibana.
-- All parsed fields (`level`, `message`, `service`, `instance`, `logger`, `thread`) are hoisted to the Elasticsearch document root via a Ruby block, making them first-class Kibana filter fields.
-- A `gsub` mutate truncates nanosecond timestamps to milliseconds before the `date` filter, ensuring compatibility with Logstash's Joda-Time parser.
-- `stdout { codec => rubydebug }` lets you verify events are flowing correctly by watching `docker logs logstash`.
-
----
-
-### 5. Filebeat Configuration — `elk/filebeat/filebeat.yml`
-
-[filebeat.yml](/elk/filebeat/filebeat.yml) configures the log shipper:
-
-```yaml
-filebeat.autodiscover:
-  providers:
-    - type: docker
-      hints.enabled: true
-      templates:
-        - condition:
-            contains:
-              docker.container.image: "dreamspace04/"
-          config:
-            - type: container
-              paths:
-                - /var/lib/docker/containers/${data.docker.container.id}/*.log
-              processors:
-                - add_docker_metadata:
-                    host: "unix:///var/run/docker.sock"
-
-processors:
-  - add_host_metadata: ~
-
-output.logstash:
-  hosts: ["logstash:5044"]
-
-logging.level: info
-```
-
-**Key design choices:**
-- **Docker autodiscover** automatically detects new containers without restarting Filebeat.
-- The condition `docker.container.image: "dreamspace04/"` scopes collection to only this project's service containers (all images are published under the `dreamspace04/` Docker Hub namespace) — avoids collecting noise from unrelated containers such as RabbitMQ, Jaeger, or Postgres.
-- `add_docker_metadata` enriches every event with `container.id`, `container.name`, and `image.name`.
-
----
-
-### 6. Docker Compose — `docker-compose.yml`
-
-[docker-compose.yml](/docker-compose.yml) was updated with two categories of changes:
-
-#### New ELK containers
-
-```yaml
-elasticsearch:
-  image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
-  environment:
-    - discovery.type=single-node
-    - xpack.security.enabled=false   # Dev mode — no auth required
-    - ES_JAVA_OPTS=-Xms512m -Xmx512m
-  ports:
-    - "9200:9200"
-  volumes:
-    - esdata:/usr/share/elasticsearch/data  # Persistent storage
-  healthcheck:
-    test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
-    interval: 10s
-    retries: 10
-
-logstash:
-  image: docker.elastic.co/logstash/logstash:8.13.0
-  ports:
-    - "5044:5044"   # Beats input
-    - "9600:9600"   # Logstash monitoring API
-  volumes:
-    - ./elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
-  depends_on:
-    elasticsearch:
-      condition: service_healthy
-
-kibana:
-  image: docker.elastic.co/kibana/kibana:8.13.0
-  ports:
-    - "5601:5601"
-  environment:
-    - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-  depends_on:
-    elasticsearch:
-      condition: service_healthy
-
-filebeat:
-  image: docker.elastic.co/beats/filebeat:8.13.0
-  user: root           # Required to read Docker socket
-  # --strict.perms=false is required on Windows hosts — Docker mounts
-  # Windows filesystem files with 777 permissions, which Filebeat rejects.
-  command: ["filebeat", "-e", "--strict.perms=false"]
-  volumes:
-    - ./elk/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-    - /var/lib/docker/containers:/var/lib/docker/containers:ro
-    - /var/run/docker.sock:/var/run/docker.sock:ro
-  depends_on:
-    - logstash
-```
-
-#### `SPRING_PROFILES_ACTIVE=docker` added to all 6 microservices
-
-This is the environment variable that activates the `JSON_STDOUT` Logback appender instead of the human-readable `CONSOLE` appender:
-
-```yaml
-environment:
-  - SPRING_PROFILES_ACTIVE=docker   # ← activates JSON logging in logback-spring.xml
-  - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
-  # ... other vars
-```
-
-#### `esdata` named volume added
-
-```yaml
-volumes:
-  esdata:
-    driver: local
-```
-
-> [!IMPORTANT]
-> Logstash and Kibana are configured with `depends_on: elasticsearch: condition: service_healthy`. This means they wait for Elasticsearch to pass its health check before starting, preventing connection errors during startup.
+### 6. Orchestrated Container Configurations (`docker-compose.yml`)
+ELK stack services are integrated into the main `docker-compose.yml` stack:
+* **Elasticsearch**: Persists indexed logs to a named volume (`esdata`) in a single-node setup with security disabled for local development.
+* **Logstash & Kibana**: Configured to wait for Elasticsearch to become healthy via container health checks (`service_healthy`) before startup.
+* **Microservices**: Run with `SPRING_PROFILES_ACTIVE=docker` to switch their Logback outputs from console-friendly text to JSON stream formatting.
 
 ---
 
@@ -429,19 +133,6 @@ The `service` field makes it trivial to filter by a specific microservice in Kib
 
 ---
 
-## What Each Service Logs (Key Events)
-
-| Service | Key Log Events |
-|---|---|
-| `api-gateway` | Incoming requests, JWT validation results, circuit breaker fallback triggers |
-| `authentication-service` | Login attempts (success / failure), mock user seeding at startup |
-| `employee-service` | Employee CRUD operations, `employee.created` RabbitMQ publishes, role-based access denials |
-| `leave-management-service` | Leave applications, validation rejections, approvals/rejections, `leave.notification` publishes, `employee.created` consumption |
-| `notification-service` | Consumed `leave.notification` events (simulated email/SMS notifications) |
-| `eureka-server` | Service registrations and deregistrations |
-
----
-
 ## How to Use Kibana
 
 ### Step 1: Start all services
@@ -449,9 +140,6 @@ The `service` field makes it trivial to filter by a specific microservice in Kib
 ```bash
 docker-compose up --build -d
 ```
-
-> [!NOTE]
-> Elasticsearch takes ~30–60 seconds to become healthy on first start. Logstash and Kibana wait for it automatically due to the `service_healthy` dependency condition.
 
 ### Step 2: Open Kibana
 
@@ -471,92 +159,6 @@ Navigate to **`http://localhost:5601`** in your browser.
 1. Click **☰ menu** → **Discover**
 2. Ensure `leave-portal-logs-*` is selected in the top-left dropdown
 3. Set your time range (e.g., **Last 15 minutes**)
-
----
-
-## Common Kibana Queries (KQL)
-
-Kibana uses **KQL (Kibana Query Language)** in the search bar. Here are the most useful queries for this project:
-
-### Filter by Service
-```kql
-service: "leave-management-service"
-```
-
-### Find All Errors Across All Services
-```kql
-level: "ERROR"
-```
-
-### Errors in a Specific Service
-```kql
-level: "ERROR" and service: "employee-service"
-```
-
-### All WARNING+ Events
-```kql
-level: "WARN" or level: "ERROR"
-```
-
-### Correlate with a Jaeger Trace ID
-```kql
-traceId: "4bf92f3577b34da6a3ce929d0e0e4736"
-```
-> Combine with Jaeger (`http://localhost:16686`) for full end-to-end request tracing — same `traceId` appears in both systems.
-
-### Leave Application Events for a Specific Employee
-```kql
-message: "employeeId=1" and service: "leave-management-service"
-```
-
-### Gateway JWT Failures
-```kql
-service: "api-gateway" and level: "WARN"
-```
-
-### Circuit Breaker Triggers
-```kql
-message: "Circuit breaker OPEN"
-```
-
----
-
-## Port Reference
-
-| Component | Port | Purpose |
-|---|---|---|
-| Elasticsearch | `9200` | REST API — data store |
-| Logstash | `5044` | Beats input from Filebeat |
-| Logstash | `9600` | Logstash monitoring API |
-| Kibana | `5601` | Web UI — search, visualize, alert |
-
----
-
-## Folder Structure
-
-```
-g:\NAGP2026\
-├── elk\
-│   ├── logstash\
-│   │   └── pipeline\
-│   │       └── logstash.conf           ← Logstash pipeline definition
-│   └── filebeat\
-│       └── filebeat.yml                ← Filebeat Docker autodiscover config
-├── api-gateway\src\main\resources\
-│   └── logback-spring.xml              ← Profile-switched Logback config
-├── authentication-service\src\main\resources\
-│   └── logback-spring.xml
-├── employee-service\src\main\resources\
-│   └── logback-spring.xml
-├── leave-management-service\src\main\resources\
-│   └── logback-spring.xml
-├── notification-service\src\main\resources\
-│   └── logback-spring.xml
-├── eureka-server\src\main\resources\
-│   └── logback-spring.xml
-├── docker-compose.yml                  ← ELK containers + SPRING_PROFILES_ACTIVE=docker
-└── pom.xml                             ← logstash-logback-encoder dependency
-```
 
 ---
 

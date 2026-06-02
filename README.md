@@ -87,7 +87,7 @@ The services are parameterized to support easy overrides. When deployed in Docke
 
 | Variable Name | Description | Default Value (Local Fallback) |
 | :--- | :--- | :--- |
-| `SPRING_PROFILES_ACTIVE` | Active Spring application profiles | `default` (H2 fallback deactivated, PostgreSQL driver used) |
+| `SPRING_PROFILES_ACTIVE` | Active Spring application profiles | `default` ( PostgreSQL driver used) |
 | `SPRING_DATASOURCE_URL` | Database connection URL | `jdbc:postgresql://localhost:5432/<db_name>` |
 | `SPRING_DATASOURCE_USERNAME` | Database username | `admin` |
 | `SPRING_DATASOURCE_PASSWORD` | Database password | `admin` |
@@ -103,7 +103,7 @@ The services are parameterized to support easy overrides. When deployed in Docke
 An exportable Postman collection is included directly in the root directory:
 * [Leave_Portal.postman_collection.json](Leave_Portal.postman_collection.json)
 
-For detailed documentation of requests, refer to [POSTMAN DOCUMENTATION](documentation/postman_collection_documentation.md).
+* For detailed documentation of requests, refer to [POSTMAN DOCUMENTATION](documentation/postman_collection_documentation.md).
 ---
 
 ## 6. Project Documentation
@@ -117,7 +117,7 @@ For deeper insights into specific aspects of the architecture, configuration, an
 
 ### 🌐 API Reference & Verification
 * [API Endpoints Reference](documentation/api_endpoints.md) — Full REST API specifications, query parameters, headers, and payloads.
-* [Postman Testing Guide](documentation/POSTMAN_DOCUMENTATION.md) — Step-by-step guide to import collections and executing end-to-end flows.
+* [Postman Testing Guide](documentation/postman_collection_documentation.md) — Step-by-step guide to import collections and executing end-to-end flows.
 
 ### 🛠️ Cross-Cutting Concerns
 * [Authentication & Authorization](documentation/cross_cutting_concerns.md#3-authentication--authorization) — JWT generation, role-based controls (Employee vs. Manager), and security filters.

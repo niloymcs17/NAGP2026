@@ -6,7 +6,7 @@
 > **Stack:** Java 17 · Spring Boot 3.2.5 · Spring Cloud 2023.0.1 · PostgreSQL · RabbitMQ · Docker
 
 ---
-
+ 
 ## Table of Contents
 
 1. [System Overview](#1-system-overview)
@@ -41,8 +41,6 @@ The **Employee Leave Management Portal** is a demonstration-grade microservices 
 ---
 
 ## 2. Architecture Diagram
-
-### 2.1 Full System Architecture
 
 ```mermaid
 flowchart LR
@@ -129,60 +127,6 @@ flowchart LR
 
 ```
 
-### 2.2 Request Flow — Authentication
-
-```mermaid
-sequenceDiagram
-    actor Client
-    participant GW as API Gateway :8080
-    participant Auth as Auth Service :8081
-    participant DB as PostgreSQL (authdb)
-
-    Client->>GW: POST /auth/login {username, password}
-    Note over GW: Route /auth/** — no JWT filter
-    GW->>Auth: Forward POST /auth/login
-    Auth->>DB: SELECT * FROM users WHERE username=?
-    DB-->>Auth: User row (hashed password, role)
-    Auth->>Auth: BCrypt.matches(plain, hash)
-    alt Credentials valid
-        Auth->>Auth: JwtUtil.generateToken(userId, username, role)
-        Auth-->>GW: 200 OK {token, userId, username, role}
-        GW-->>Client: 200 OK {token, userId, username, role}
-    else Credentials invalid
-        Auth-->>GW: 401 Unauthorized
-        GW-->>Client: 401 Unauthorized
-    end
-```
-
-### 2.3 Request Flow — Authenticated API Call
-
-```mermaid
-sequenceDiagram
-    actor Client
-    participant GW as API Gateway :8080
-    participant Filter as JwtAuthenticationFilter
-    participant Leave as Leave Service :8083
-    participant DB as PostgreSQL (leavedb)
-    participant MQ as RabbitMQ
-    participant Notif as Notification Service :8084
-
-    Client->>GW: POST /leaves/apply\nAuthorization: Bearer <token>
-    GW->>Filter: Apply JwtAuthenticationFilter
-    Filter->>Filter: validateToken(token) → true
-    Filter->>Filter: Extract claims (userId, role, username)
-    Filter->>GW: Mutate request headers\nX-User-Id, X-User-Role, X-User-Username
-    GW->>Leave: Forward POST /leaves/apply + X-User-* headers
-    Leave->>Leave: Role check (EMPLOYEE allowed)
-    Leave->>DB: Check leave balance, overlapping dates
-    DB-->>Leave: Balance rows
-    Leave->>DB: INSERT leave_request (status=PENDING)
-    Leave->>MQ: Publish leave.notification event
-    Leave-->>GW: 201 Created {leaveId, status: PENDING}
-    GW-->>Client: 201 Created
-    MQ-->>Notif: Consume leave.notification
-    Notif->>Notif: Log simulated notification
-```
-
 ---
 
 ## 3. Service Inventory
@@ -227,22 +171,6 @@ sequenceDiagram
   - Circuit breaker wrapping on every route (Resilience4j)
   - Fallback endpoints for degraded-mode responses
 
-**Route Table:**
-
-| Route ID | Path Pattern | JWT Required | Circuit Breaker |
-|----------|-------------|:------------:|:---------------:|
-| `authentication-service` | `/auth/**` | ❌ | `authServiceCB` |
-| `employee-service` | `/employees/**` | ✅ | `employeeServiceCB` |
-| `leave-management-service` | `/leaves/**` | ✅ | `leaveServiceCB` |
-
-**Circuit Breaker Configuration:**
-
-| Breaker | Window Size | Min Calls | Failure Threshold | Wait (Open) |
-|---------|:-----------:|:---------:|:-----------------:|:-----------:|
-| `authServiceCB` | 10 | 5 | 50% | 10s |
-| `employeeServiceCB` | 20 | 10 | 50% | 5s |
-| `leaveServiceCB` | 20 | 10 | 50% | 5s |
-
 ---
 
 ### 4.3 Authentication Service (`authentication-service`)
@@ -261,16 +189,6 @@ sequenceDiagram
 | `employee1` | `password` | `EMPLOYEE` |
 | `employee2` | `password` | `EMPLOYEE` |
 | `manager1` | `password` | `MANAGER` |
-
-**JWT Claims:**
-
-| Claim | Value |
-|-------|-------|
-| `sub` | User ID (string) |
-| `role` | `EMPLOYEE` or `MANAGER` |
-| `username` | Authenticated username |
-| `iat` | Issued-at timestamp |
-| `exp` | Expiry (iat + 24 hours) |
 
 ---
 
@@ -423,119 +341,22 @@ The system implements a hybrid communication architecture consisting of synchron
 > [!NOTE]
 > For the complete details of the communication patterns, RabbitMQ topology, message payloads, and schema details, see the dedicated writeup in [inter_service_communication.md](inter_service_communication.md).
 
-### 6.1 Architectural Assumptions
-
-1. **Shared Identity Key:** `User.id` (auth) = `Employee.id` (employee) = `LeaveRequest.employeeId` (leave). The manager who creates an employee profile supplies the ID that matches the authentication record.
-2. **Eventual Consistency:** Leave balance initialization is asynchronous. The `POST /employees` call returns `201` immediately; balances appear after the `employee.created` event is consumed.
-3. **Gateway as Trust Boundary:** Downstream services trust `X-User-*` headers unconditionally. They assume the gateway has already validated the JWT — no downstream JWT parsing occurs.
-
 ---
 
 ## 7. Cross-Cutting Concerns
 
-### 7.1 Authentication & Authorization
+Cross-cutting concerns represent system-wide aspects that apply across multiple microservices, such as security, resilience, tracing, logging, and global exception handling. These details have been centralized to maintain modularity and a single source of truth.
 
 > [!NOTE]
-> See the full document: [cross_cutting_concerns.md](cross_cutting_concerns.md#3-authentication--authorization)
+> For the complete details on all cross-cutting concern implementations, configurations, and workflows, please see the consolidated document: [cross_cutting_concerns.md](cross_cutting_concerns.md).
 
-| Concern | Where Implemented | Mechanism |
-|---------|------------------|-----------|
-| Authentication | `authentication-service` | BCrypt password check → JWT issuance |
-| Gateway-level AuthZ | `api-gateway` | `JwtAuthenticationFilter` → validates JWT, injects headers |
-| Service-level AuthZ | `employee-service`, `leave-management-service` | Read `X-User-Role` header, enforce RBAC |
-
-
-
-
-### 7.2 Circuit Breaker
-
-> [!NOTE]
-> See the full document: [cross_cutting_concerns.md](cross_cutting_concerns.md#2-circuit-breaker-pattern)
-
-- **Library:** Resilience4j (via `spring-cloud-starter-circuitbreaker-reactor-resilience4j`)
-- **Scope:** All three downstream routes in the API Gateway
-- **States:** `CLOSED` → `OPEN` (after threshold) → `HALF-OPEN` (after wait) → `CLOSED`
-- **Fallback:** Each route has a dedicated fallback endpoint in [`FallbackController`](/api-gateway/src/main/java/com/niloy/gateway/controller/FallbackController.java) that returns a structured `503 Service Unavailable` response
-
-
-
-### 7.3 Distributed Tracing
-
-> [!NOTE]
-> See the full document: [cross_cutting_concerns.md](cross_cutting_concerns.md#5-distributed-tracing)
-
-- **Library:** Micrometer Tracing + OpenTelemetry (OTLP exporter)
-- **Backend:** Jaeger (`http://jaeger:4318/v1/traces`)
-- **Sampling:** 100% (`probability: 1.0`) — every request is traced
-- **Coverage:** All 5 microservices export `traceId` + `spanId`
-- **UI:** http://localhost:16686
-
-
-
-### 7.4 Structured Logging & ELK Stack
-
-> [!NOTE]
-> See the full document: [cross_cutting_concerns.md](cross_cutting_concerns.md#1-logging)
-
-- **Library:** SLF4J + Logback + `logstash-logback-encoder`
-- **Format:** JSON (machine-readable, with `traceId`, `spanId`, service name, timestamp)
-- **Pipeline:** Service → JSON log file → Filebeat → Logstash → Elasticsearch → Kibana
-- **Kibana:** http://localhost:5601
-
-
-### 7.5 Global Exception Handling
-
-> [!NOTE]
-> See the full document: [cross_cutting_concerns.md](cross_cutting_concerns.md#4-global-exception-handling)
-
-
-
-### 7.6 Health & Actuator Endpoints
-
-> [!NOTE]
-> See the full document: [health_checks.md](health_checks.md)
+*(For service health and metrics, see the dedicated [health_checks.md](health_checks.md) guide.)*
 
 ---
 
 ## 8. Deployment Architecture
 
-### 8.1 Docker Compose Services
-
-The entire stack runs as Docker containers defined in [`docker-compose.yml`](/docker-compose.yml):
-
-```mermaid
-flowchart TB
-    subgraph docker["Docker Compose Network"]
-        subgraph infra["Infrastructure"]
-            pg["postgres-db\n:5432"]
-            rmq["rabbitmq\n:5672 / :15672"]
-            jaeger["jaeger\n:16686 / :4318"]
-            es["elasticsearch\n:9200"]
-            ls["logstash\n:5044"]
-            kb["kibana\n:5601"]
-            fb["filebeat"]
-        end
-
-        subgraph svcs["Microservices"]
-            eureka["eureka-server\n:8761"]
-            gw["api-gateway\n:8080"]
-            auth1["auth-service\n(replica 1)"]
-            auth2["auth-service\n(replica 2)"]
-            emp1["employee-service\n(replica 1)"]
-            emp2["employee-service\n(replica 2)"]
-            leave1["leave-service\n(replica 1)"]
-            leave2["leave-service\n(replica 2)"]
-            notif["notification-service\n:8084"]
-        end
-    end
-
-    pg --> auth1 & auth2 & emp1 & emp2 & leave1 & leave2
-    rmq --> emp1 & emp2 & leave1 & leave2 & notif
-    eureka --> gw & auth1 & auth2 & emp1 & emp2 & leave1 & leave2 & notif
-    fb --> ls --> es --> kb
-```
-
-### 8.2 Startup Order & Dependencies
+### 8.1 Startup Order & Dependencies
 
 | Service | Waits For |
 |---------|-----------|
@@ -552,7 +373,7 @@ flowchart TB
 | `kibana` | `elasticsearch` (healthy) |
 | `filebeat` | `logstash` |
 
-### 8.3 Docker Images
+### 8.2 Docker Images
 
 All service images are built from their respective `Dockerfile` and tagged under the `dreamspace04` Docker Hub namespace:
 
@@ -565,7 +386,7 @@ All service images are built from their respective `Dockerfile` and tagged under
 | `dreamspace04/leave-management-service` | `latest` |
 | `dreamspace04/notification-service` | `latest` |
 
-### 8.4 Running the Stack
+### 8.3 Running the Stack
 
 ```bash
 # Build and start all services
