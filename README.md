@@ -132,3 +132,6 @@ For deeper insights into specific aspects of the architecture, configuration, an
 ###  Optional Enhancements (Bonus)
 * [Centralized Logging & ELK Stack](documentation/elk_stack_centralized_logging.md) — Step-by-step setup for Filebeat, Logstash, Elasticsearch, and Kibana.
 * [Health Checks & Actuator Monitoring](documentation/health_checks.md) — Exposures, indicators, and metrics via Spring Boot Actuator.
+
+### 📹 Video Walkthrough
+* [Project Overview & Demo](https://drive.google.com/drive/folders/1nXBP9TXnkCdWdSV-aDfJc0J8hM6Fo95_?usp=sharing) — Complete walkthrough of the architecture, setup, and features.
